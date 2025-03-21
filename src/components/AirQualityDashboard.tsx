@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { MapPin } from "lucide-react";
@@ -79,83 +80,85 @@ const AirQualityDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full py-6 px-4 md:px-6 animate-gradient-shift">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <Header 
-          airQualityData={airQualityData} 
-          isLoading={isLoading} 
-          onRefresh={handleRefresh} 
+    <div className="space-y-6 animate-fade-in">
+      <Header 
+        airQualityData={airQualityData} 
+        isLoading={isLoading} 
+        onRefresh={handleRefresh} 
+      />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <LocationSelector 
+          onLocationSelected={loadDataForLocation} 
+          onDetectLocation={loadDataForCurrentLocation}
+          isLoading={isLoading}
         />
         
-        <div className="dashboard-grid">
-          <LocationSelector 
-            onLocationSelected={loadDataForLocation} 
-            onDetectLocation={loadDataForCurrentLocation}
-            isLoading={isLoading}
-          />
-          
-          <AirQualityMap 
-            airQualityData={airQualityData} 
-            isLoading={isLoading} 
-          />
-          
-          {airQualityData && (
-            <>
-              <AirQualityChart 
-                title="PM2.5 Concentration" 
-                data={historicalData.pm25 || []} 
-                color="pm25" 
-                unit="µg/m³" 
-              />
-              
-              <AirQualityChart 
-                title="NO2 Concentration" 
-                data={historicalData.no2 || []} 
-                color="no2" 
-                unit="ppb" 
-              />
-              
-              {METRICS_INFO.map((metricInfo) => (
-                <MetricCard
-                  key={metricInfo.key}
-                  metricInfo={metricInfo}
-                  value={airQualityData.metrics[metricInfo.key]}
-                  historical={historicalData[metricInfo.key]}
-                />
-              ))}
-            </>
-          )}
-          
-          {error && (
-            <div className="col-span-full glass-card p-6 text-center text-red-400">
-              <p>{error}</p>
-              <Button 
-                onClick={loadDataForCurrentLocation} 
-                variant="outline" 
-                className="mt-4"
-              >
-                Try Again
-              </Button>
-            </div>
-          )}
-          
-          {!airQualityData && !error && !isLoading && (
-            <div className="col-span-full glass-card p-6 text-center">
-              <p className="text-muted-foreground mb-4">
-                Select a location or use your current position to view air quality data
-              </p>
-              <Button 
-                onClick={loadDataForCurrentLocation} 
-                variant="default" 
-                className="bg-primary"
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                Use My Location
-              </Button>
-            </div>
-          )}
-        </div>
+        <AirQualityMap 
+          airQualityData={airQualityData} 
+          isLoading={isLoading} 
+        />
       </div>
+      
+      {airQualityData && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <AirQualityChart 
+              title="PM2.5 Concentration" 
+              data={historicalData.pm25 || []} 
+              color="pm25" 
+              unit="µg/m³" 
+            />
+            
+            <AirQualityChart 
+              title="NO2 Concentration" 
+              data={historicalData.no2 || []} 
+              color="no2" 
+              unit="ppb" 
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+            {METRICS_INFO.map((metricInfo) => (
+              <MetricCard
+                key={metricInfo.key}
+                metricInfo={metricInfo}
+                value={airQualityData.metrics[metricInfo.key]}
+                historical={historicalData[metricInfo.key]}
+              />
+            ))}
+          </div>
+        </>
+      )}
+      
+      {error && (
+        <div className="col-span-full glass-card p-6 text-center text-red-400">
+          <p>{error}</p>
+          <Button 
+            onClick={loadDataForCurrentLocation} 
+            variant="outline" 
+            className="mt-4"
+          >
+            Try Again
+          </Button>
+        </div>
+      )}
+      
+      {!airQualityData && !error && !isLoading && (
+        <div className="glass-card p-6 text-center">
+          <p className="text-muted-foreground mb-4">
+            Select a location or use your current position to view air quality data
+          </p>
+          <Button 
+            onClick={loadDataForCurrentLocation} 
+            variant="default" 
+            className="bg-primary"
+          >
+            <MapPin className="mr-2 h-4 w-4" />
+            Use My Location
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
