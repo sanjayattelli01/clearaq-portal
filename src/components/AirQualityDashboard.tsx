@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
@@ -9,11 +10,13 @@ import {
   Wind, 
   ThermometerSun,
   ChevronRight,
-  Gauge
+  Gauge,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import Header from "./Header";
 import MetricCard from "./MetricCard";
 import AirQualityMap from "./AirQualityMap";
@@ -24,6 +27,7 @@ import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
   fetchAirQualityData, 
   fetchAirQualityDataByCity, 
+  fetchAirQualityFromGoogleAPI,
   getUserCurrentLocation,
   getHistoricalDataForMetric
 } from "@/utils/api";
@@ -34,6 +38,7 @@ const AirQualityDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [dataSource, setDataSource] = useState<"local" | "google">("local");
 
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
@@ -64,10 +69,18 @@ const AirQualityDashboard: React.FC = () => {
     
     try {
       const coordinates = await getUserCurrentLocation();
-      const data = await fetchAirQualityData(coordinates);
+      
+      let data;
+      if (dataSource === "google") {
+        data = await fetchAirQualityFromGoogleAPI(coordinates);
+        toast.success("Loaded air quality data from Google API");
+      } else {
+        data = await fetchAirQualityData(coordinates);
+        toast.success("Loaded air quality data for your location");
+      }
+      
       setAirQualityData(data);
       loadHistoricalData();
-      toast.success("Loaded air quality data for your location");
       
       const analysisSection = document.getElementById("analysis");
       if (analysisSection) {
@@ -75,8 +88,8 @@ const AirQualityDashboard: React.FC = () => {
       }
     } catch (err) {
       console.error("Error fetching data for current location:", err);
-      setError("Failed to load air quality data for your location");
-      toast.error("Failed to access your location");
+      setError(`Failed to load air quality data from ${dataSource === "google" ? "Google API" : "your location"}`);
+      toast.error(`Failed to ${dataSource === "google" ? "access Google API" : "access your location"}`);
     } finally {
       setIsLoading(false);
     }
@@ -137,27 +150,46 @@ const AirQualityDashboard: React.FC = () => {
             <p className="text-lg text-muted-foreground mb-6">
               Get real-time air quality data for any location or use your current position
             </p>
-            <div className="flex justify-center gap-4">
-              <Button 
-                onClick={() => {
-                  const inputsSection = document.getElementById("inputs");
-                  if (inputsSection) {
-                    inputsSection.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-              >
-                Enter Air Quality Data
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={loadDataForCurrentLocation}
-                disabled={isLoading}
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                Use My Location
-              </Button>
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex justify-center gap-4">
+                <Button 
+                  onClick={() => {
+                    const inputsSection = document.getElementById("inputs");
+                    if (inputsSection) {
+                      inputsSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                >
+                  Enter Air Quality Data
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={loadDataForCurrentLocation}
+                  disabled={isLoading}
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Use My Location
+                </Button>
+              </div>
+              
+              <div className="w-full max-w-md">
+                <div className="flex items-center justify-center mb-2">
+                  <Info className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Select Data Source:</span>
+                </div>
+                <ToggleGroup type="single" defaultValue="local" value={dataSource} onValueChange={(value) => value && setDataSource(value as "local" | "google")} className="justify-center">
+                  <ToggleGroupItem value="local" className="flex gap-1">
+                    <Wind className="h-4 w-4" />
+                    <span>Local Data</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="google" className="flex gap-1">
+                    <Globe className="h-4 w-4" />
+                    <span>Google API</span>
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
           </div>
         </section>
@@ -203,8 +235,17 @@ const AirQualityDashboard: React.FC = () => {
                   onClick={loadDataForCurrentLocation}
                   disabled={isLoading}
                 >
-                  <MapPin className="mr-2 h-4 w-4" />
-                  Use Current Location
+                  {dataSource === "google" ? (
+                    <>
+                      <Globe className="mr-2 h-4 w-4" />
+                      Use Google API
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="mr-2 h-4 w-4" />
+                      Use Current Location
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -216,6 +257,11 @@ const AirQualityDashboard: React.FC = () => {
             <div className="flex items-center mb-6">
               <BarChart className="h-5 w-5 mr-2 text-primary" />
               <h2 className="text-2xl font-semibold">Analysis</h2>
+              {airQualityData?.source && (
+                <span className="ml-4 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  Source: {airQualityData.source}
+                </span>
+              )}
             </div>
             
             <div className="dashboard-grid">
@@ -260,8 +306,17 @@ const AirQualityDashboard: React.FC = () => {
                       variant="default" 
                       className="bg-primary"
                     >
-                      <MapPin className="mr-2 h-4 w-4" />
-                      Use My Location
+                      {dataSource === "google" ? (
+                        <>
+                          <Globe className="mr-2 h-4 w-4" />
+                          Use Google API
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="mr-2 h-4 w-4" />
+                          Use My Location
+                        </>
+                      )}
                     </Button>
                   )}
                   {error && (

@@ -1,4 +1,3 @@
-
 export interface AirQualityData {
   location: {
     name: string;
@@ -14,6 +13,7 @@ export interface AirQualityData {
     category: AqiCategory;
     description: string;
   };
+  source?: string; // Added to track the data source
 }
 
 export interface AirQualityMetrics {
