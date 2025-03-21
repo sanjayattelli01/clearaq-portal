@@ -1,12 +1,25 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { MapPin } from "lucide-react";
+import { 
+  MapPin, 
+  RefreshCw, 
+  Settings, 
+  Info, 
+  BarChart, 
+  Wind, 
+  ThermometerSun,
+  ChevronRight
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Header from "./Header";
 import MetricCard from "./MetricCard";
 import AirQualityMap from "./AirQualityMap";
 import AirQualityChart from "./AirQualityChart";
-import LocationSelector from "./LocationSelector";
+import QualityIndexCard from "./QualityIndexCard";
+import FinalAirQuality from "./FinalAirQuality";
 import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
   fetchAirQualityData, 
@@ -20,6 +33,7 @@ const AirQualityDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
+  const [formData, setFormData] = useState<Record<string, string>>({});
 
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
@@ -30,6 +44,12 @@ const AirQualityDashboard: React.FC = () => {
       setAirQualityData(data);
       loadHistoricalData();
       toast.success(`Loaded air quality data for ${location}`);
+      
+      // Scroll to analysis section after loading data
+      const analysisSection = document.getElementById("analysis");
+      if (analysisSection) {
+        analysisSection.scrollIntoView({ behavior: 'smooth' });
+      }
     } catch (err) {
       console.error("Error fetching data by city:", err);
       setError("Failed to load air quality data for this location");
@@ -49,6 +69,12 @@ const AirQualityDashboard: React.FC = () => {
       setAirQualityData(data);
       loadHistoricalData();
       toast.success("Loaded air quality data for your location");
+      
+      // Scroll to analysis section after loading data
+      const analysisSection = document.getElementById("analysis");
+      if (analysisSection) {
+        analysisSection.scrollIntoView({ behavior: 'smooth' });
+      }
     } catch (err) {
       console.error("Error fetching data for current location:", err);
       setError("Failed to load air quality data for your location");
@@ -68,6 +94,25 @@ const AirQualityDashboard: React.FC = () => {
     setHistoricalData(data);
   };
 
+  const handleInputChange = (key: string, value: string) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmitData = () => {
+    // For demo purposes, we'll just simulate loading real data
+    setIsLoading(true);
+    toast.promise(
+      new Promise(resolve => setTimeout(resolve, 1500)).then(() => {
+        loadDataForCurrentLocation();
+      }),
+      {
+        loading: 'Processing input data...',
+        success: 'Data processed successfully!',
+        error: 'Failed to process data'
+      }
+    );
+  };
+
   const handleRefresh = () => {
     if (airQualityData) {
       if (airQualityData.location.name === "Current Location") {
@@ -79,82 +124,217 @@ const AirQualityDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full py-6 px-4 md:px-6 animate-gradient-shift">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen w-full pb-6 animate-gradient-shift">
+      <div className="max-w-full mx-auto">
         <Header 
           airQualityData={airQualityData} 
           isLoading={isLoading} 
           onRefresh={handleRefresh} 
         />
         
-        <div className="dashboard-grid">
-          <LocationSelector 
-            onLocationSelected={loadDataForLocation} 
-            onDetectLocation={loadDataForCurrentLocation}
-            isLoading={isLoading}
-          />
-          
-          <AirQualityMap 
-            airQualityData={airQualityData} 
-            isLoading={isLoading} 
-          />
-          
-          {airQualityData && (
-            <>
-              <AirQualityChart 
-                title="PM2.5 Concentration" 
-                data={historicalData.pm25 || []} 
-                color="pm25" 
-                unit="µg/m³" 
-              />
-              
-              <AirQualityChart 
-                title="NO2 Concentration" 
-                data={historicalData.no2 || []} 
-                color="no2" 
-                unit="ppb" 
-              />
-              
-              {METRICS_INFO.map((metricInfo) => (
-                <MetricCard
-                  key={metricInfo.key}
-                  metricInfo={metricInfo}
-                  value={airQualityData.metrics[metricInfo.key]}
-                  historical={historicalData[metricInfo.key]}
-                />
-              ))}
-            </>
-          )}
-          
-          {error && (
-            <div className="col-span-full glass-card p-6 text-center text-red-400">
-              <p>{error}</p>
+        {/* Home Section */}
+        <section id="home" className="py-8 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
+              Air Quality Monitoring Dashboard
+            </h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Get real-time air quality data for any location or use your current position
+            </p>
+            <div className="flex justify-center gap-4">
               <Button 
-                onClick={loadDataForCurrentLocation} 
-                variant="outline" 
-                className="mt-4"
+                onClick={() => {
+                  const inputsSection = document.getElementById("inputs");
+                  if (inputsSection) {
+                    inputsSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
               >
-                Try Again
+                Enter Air Quality Data
+                <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-            </div>
-          )}
-          
-          {!airQualityData && !error && !isLoading && (
-            <div className="col-span-full glass-card p-6 text-center">
-              <p className="text-muted-foreground mb-4">
-                Select a location or use your current position to view air quality data
-              </p>
               <Button 
-                onClick={loadDataForCurrentLocation} 
-                variant="default" 
-                className="bg-primary"
+                variant="outline" 
+                onClick={loadDataForCurrentLocation}
+                disabled={isLoading}
               >
                 <MapPin className="mr-2 h-4 w-4" />
                 Use My Location
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
+        
+        {/* Inputs Section */}
+        <section id="inputs" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center mb-6">
+              <Wind className="h-5 w-5 mr-2 text-primary" />
+              <h2 className="text-2xl font-semibold">Air Quality Inputs</h2>
+            </div>
+            
+            <div className="glass-card p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {METRICS_INFO.map((metric) => (
+                  <div key={metric.key} className="flex flex-col space-y-2">
+                    <Label htmlFor={metric.key} className="flex items-center gap-2">
+                      {metric.label}
+                    </Label>
+                    <Input
+                      id={metric.key}
+                      placeholder={`Enter ${metric.label}`}
+                      value={formData[metric.key] || ''}
+                      onChange={(e) => handleInputChange(metric.key, e.target.value)}
+                      className="backdrop-blur-sm bg-secondary/40 border-none"
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex justify-center mt-8 gap-4">
+                <Button onClick={handleSubmitData} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Submit Data'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={loadDataForCurrentLocation}
+                  disabled={isLoading}
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Use Current Location
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Analysis Section */}
+        <section id="analysis" className="py-8 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center mb-6">
+              <BarChart className="h-5 w-5 mr-2 text-primary" />
+              <h2 className="text-2xl font-semibold">Analysis</h2>
+            </div>
+            
+            <div className="dashboard-grid">
+              {airQualityData ? (
+                <>
+                  <AirQualityMap 
+                    airQualityData={airQualityData} 
+                    isLoading={isLoading} 
+                  />
+                  
+                  <AirQualityChart 
+                    title="PM2.5 Concentration" 
+                    data={historicalData.pm25 || []} 
+                    color="pm25" 
+                    unit="µg/m³" 
+                  />
+                  
+                  <AirQualityChart 
+                    title="NO2 Concentration" 
+                    data={historicalData.no2 || []} 
+                    color="no2" 
+                    unit="ppb" 
+                  />
+                  
+                  {METRICS_INFO.map((metricInfo) => (
+                    <MetricCard
+                      key={metricInfo.key}
+                      metricInfo={metricInfo}
+                      value={airQualityData.metrics[metricInfo.key]}
+                      historical={historicalData[metricInfo.key]}
+                    />
+                  ))}
+                </>
+              ) : (
+                <div className="col-span-full glass-card p-6 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    {isLoading ? "Loading data..." : "Enter values or use your location to view air quality data"}
+                  </p>
+                  {!isLoading && !error && (
+                    <Button 
+                      onClick={loadDataForCurrentLocation} 
+                      variant="default" 
+                      className="bg-primary"
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      Use My Location
+                    </Button>
+                  )}
+                  {error && (
+                    <div className="text-red-400 mt-2">
+                      <p>{error}</p>
+                      <Button 
+                        onClick={loadDataForCurrentLocation} 
+                        variant="outline" 
+                        className="mt-4"
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+        
+        {/* Quality Index Section */}
+        <section id="quality-index" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center mb-6">
+              <Gauge className="h-5 w-5 mr-2 text-primary" />
+              <h2 className="text-2xl font-semibold">Quality Index</h2>
+            </div>
+            
+            {airQualityData ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {METRICS_INFO.map((metricInfo) => (
+                  <QualityIndexCard
+                    key={metricInfo.key}
+                    metricInfo={metricInfo}
+                    value={airQualityData.metrics[metricInfo.key]}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="glass-card p-6 text-center">
+                <p className="text-muted-foreground">
+                  No data available. Please enter values or use your location.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+        
+        {/* Final Air Quality Section */}
+        <section id="final-air-quality" className="py-8 px-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center mb-6">
+              <ThermometerSun className="h-5 w-5 mr-2 text-primary" />
+              <h2 className="text-2xl font-semibold">Final Air Quality</h2>
+            </div>
+            
+            {airQualityData ? (
+              <FinalAirQuality airQualityData={airQualityData} />
+            ) : (
+              <div className="glass-card p-6 text-center">
+                <p className="text-muted-foreground">
+                  No data available. Please enter values or use your location.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
