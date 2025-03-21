@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sun, CloudRain, CloudFog, AlertTriangle, AlertOctagon } from "lucide-react";
+import { Sun, CloudRain, CloudFog, AlertTriangle, AlertOctagon, MapPin, ExternalLink } from "lucide-react";
 import { AirQualityData } from "@/utils/types";
+import { Button } from "@/components/ui/button";
 
 interface FinalAirQualityProps {
   airQualityData: AirQualityData;
@@ -60,49 +61,134 @@ const FinalAirQuality: React.FC<FinalAirQualityProps> = ({ airQualityData }) => 
         return <AlertTriangle className={`h-20 w-20 text-muted-foreground ${animateIcon ? 'animate-pulse-slow' : ''}`} />;
     }
   };
+
+  const getCategoryColor = (category: string) => {
+    switch(category) {
+      case "good": return "bg-green-500";
+      case "moderate": return "bg-yellow-500";
+      case "unhealthy": return "bg-orange-500";
+      case "very-unhealthy": return "bg-red-500";
+      case "hazardous": return "bg-purple-500";
+      default: return "bg-gray-500";
+    }
+  };
   
   return (
     <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-md animate-fade-in">
-      <CardContent className="p-8 flex flex-col items-center text-center">
-        <div className="mb-6">
-          {getAirQualityIcon()}
-        </div>
-        
-        <h3 className={`text-3xl font-bold mb-2 metric-category-${airQualityData.aqi.category}`}>
-          {airQualityData.aqi.description}
-        </h3>
-        
-        <div className="text-5xl font-bold mb-6 flex items-baseline">
-          <span className={`metric-category-${airQualityData.aqi.category}`}>
-            {airQualityData.aqi.value}
-          </span>
-          <span className="text-base ml-2 text-muted-foreground">AQI</span>
-        </div>
-        
-        <div className="w-full bg-secondary/30 rounded-full h-3 mb-6">
-          <div 
-            className={`bg-air-${airQualityData.aqi.category === "good" ? "green" : 
-              airQualityData.aqi.category === "moderate" ? "yellow" : 
-              airQualityData.aqi.category === "unhealthy" ? "orange" : 
-              airQualityData.aqi.category === "very-unhealthy" ? "red" : "purple"} h-3 rounded-full transition-all duration-1000 ease-in-out`}
-            style={{ width: `${(airQualityData.aqi.value / 500) * 100}%` }}
-          ></div>
-        </div>
-        
-        <div className="flex justify-between w-full text-xs text-muted-foreground mb-6">
-          <span>0</span>
-          <span>100</span>
-          <span>200</span>
-          <span>300</span>
-          <span>500</span>
-        </div>
-        
-        <div className="text-muted-foreground text-sm max-w-2xl">
-          <p className="mb-4">Location: <span className="font-medium text-foreground">{airQualityData.location.name}</span></p>
-          <p className="mb-4">{getRecommendation(airQualityData.aqi.category)}</p>
-          <p className="text-xs">
-            Last updated: {new Date(airQualityData.timestamp).toLocaleString()}
+      <CardContent className="p-0">
+        {/* Google-style header */}
+        <div className="p-4 bg-background border-b">
+          <h2 className="text-2xl font-bold">Air quality</h2>
+          <p className="text-sm text-muted-foreground flex items-center">
+            From {airQualityData.source || "Standard"} AQI - Source {airQualityData.location.name}
           </p>
+        </div>
+
+        {/* Map and indicator section */}
+        <div className="relative">
+          {/* Map placeholder with dark theme similar to Google's map */}
+          <div className="w-full h-64 bg-[#1e293b] relative overflow-hidden">
+            {/* Stylized map grid lines */}
+            <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={`grid-line-v-${i}`} className="border-r border-white/5 h-full"></div>
+              ))}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={`grid-line-h-${i}`} className="border-b border-white/5 w-full"></div>
+              ))}
+            </div>
+            
+            {/* Map Pin */}
+            <div className="absolute" style={{ 
+              top: "50%", 
+              left: "50%", 
+              transform: "translate(-50%, -50%)" 
+            }}>
+              <div className="relative">
+                {/* AQI indicator pin with category-based color */}
+                <div className={`h-10 w-10 rounded-full ${getCategoryColor(airQualityData.aqi.category)} flex items-center justify-center text-white font-bold drop-shadow-lg`}>
+                  {airQualityData.aqi.value}
+                </div>
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 rounded-full animate-pulse-slow"></div>
+              </div>
+            </div>
+
+            {/* Location label */}
+            <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-sm text-white text-sm py-1 px-2 rounded">
+              {airQualityData.location.name}
+            </div>
+
+            {/* Map controls (decorative) */}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+              <div className="h-8 w-8 rounded bg-black/60 flex items-center justify-center text-white">+</div>
+              <div className="h-8 w-8 rounded bg-black/60 flex items-center justify-center text-white">−</div>
+            </div>
+          </div>
+
+          {/* View map button */}
+          <div className="w-full border-t border-b p-3">
+            <Button variant="ghost" className="w-full flex justify-center items-center gap-2">
+              View map
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* AQI scale */}
+        <div className="px-4 pt-4">
+          <p className="text-sm text-muted-foreground mb-2">
+            {airQualityData.location.name} Air Quality Index (AQI)
+          </p>
+          
+          {/* Color gradient scale */}
+          <div className="w-full h-2 rounded-full mb-2 flex overflow-hidden">
+            <div className="bg-green-500 h-full flex-1"></div>
+            <div className="bg-yellow-500 h-full flex-1"></div>
+            <div className="bg-orange-500 h-full flex-1"></div>
+            <div className="bg-red-500 h-full flex-1"></div>
+            <div className="bg-purple-500 h-full flex-1"></div>
+          </div>
+          
+          {/* Scale numbers */}
+          <div className="flex justify-between w-full text-xs text-muted-foreground mb-6">
+            <span>0</span>
+            <span>100</span>
+            <span>200</span>
+            <span>300</span>
+            <span>400</span>
+            <span>500</span>
+          </div>
+        </div>
+
+        {/* Station info - similar to Google's display */}
+        <div className="px-4 pb-6">
+          <div className="flex items-start gap-4">
+            <div className="bg-background border rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+              <span className="font-bold">A</span>
+            </div>
+            <div>
+              <p className="font-semibold">{airQualityData.location.name} - {airQualityData.source || "Standard"}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <MapPin className="h-3 w-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {airQualityData.location.coordinates.latitude.toFixed(4)}, {airQualityData.location.coordinates.longitude.toFixed(4)}
+                </p>
+              </div>
+              <div className="flex items-center mt-2">
+                <div className={`h-3 w-3 rounded-full ${getCategoryColor(airQualityData.aqi.category)} mr-2`}></div>
+                <span className="font-bold">{airQualityData.aqi.value} AQI</span>
+                <span className="mx-2">•</span>
+                <span>{airQualityData.aqi.description}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 text-sm text-muted-foreground">
+            <p>{getRecommendation(airQualityData.aqi.category)}</p>
+            <p className="mt-2 text-xs">
+              Last updated: {new Date(airQualityData.timestamp).toLocaleString()}
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
