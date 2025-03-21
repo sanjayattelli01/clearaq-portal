@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
@@ -9,7 +8,8 @@ import {
   BarChart, 
   Wind, 
   ThermometerSun,
-  ChevronRight
+  ChevronRight,
+  Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,6 @@ const AirQualityDashboard: React.FC = () => {
       loadHistoricalData();
       toast.success(`Loaded air quality data for ${location}`);
       
-      // Scroll to analysis section after loading data
       const analysisSection = document.getElementById("analysis");
       if (analysisSection) {
         analysisSection.scrollIntoView({ behavior: 'smooth' });
@@ -70,7 +69,6 @@ const AirQualityDashboard: React.FC = () => {
       loadHistoricalData();
       toast.success("Loaded air quality data for your location");
       
-      // Scroll to analysis section after loading data
       const analysisSection = document.getElementById("analysis");
       if (analysisSection) {
         analysisSection.scrollIntoView({ behavior: 'smooth' });
@@ -99,7 +97,6 @@ const AirQualityDashboard: React.FC = () => {
   };
 
   const handleSubmitData = () => {
-    // For demo purposes, we'll just simulate loading real data
     setIsLoading(true);
     toast.promise(
       new Promise(resolve => setTimeout(resolve, 1500)).then(() => {
@@ -132,7 +129,6 @@ const AirQualityDashboard: React.FC = () => {
           onRefresh={handleRefresh} 
         />
         
-        {/* Home Section */}
         <section id="home" className="py-8 px-6">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
@@ -166,7 +162,6 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        {/* Inputs Section */}
         <section id="inputs" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center mb-6">
@@ -216,7 +211,6 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        {/* Analysis Section */}
         <section id="analysis" className="py-8 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center mb-6">
@@ -288,7 +282,6 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        {/* Quality Index Section */}
         <section id="quality-index" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center mb-6">
@@ -316,7 +309,6 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        {/* Final Air Quality Section */}
         <section id="final-air-quality" className="py-8 px-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center mb-6">
