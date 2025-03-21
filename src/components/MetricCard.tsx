@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Info, Thermometer, Droplet, Wind, Cloud, Sun, CloudRain, Compass, Factory, Flask } from "lucide-react";
+import { Info, Thermometer, Droplet, Wind, Cloud, Sun, CloudRain, Compass, Factory, Beaker } from "lucide-react";
 import { MetricInfo, MetricValue, colorMap } from "@/utils/types";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ metricInfo, value, historical }
       case "cloud-rain": return <CloudRain className={`h-5 w-5 text-${colorClass}`} />;
       case "compass": return <Compass className={`h-5 w-5 text-${colorClass}`} />;
       case "factory": return <Factory className={`h-5 w-5 text-${colorClass}`} />;
-      case "flask": return <Flask className={`h-5 w-5 text-${colorClass}`} />;
+      case "flask": return <Beaker className={`h-5 w-5 text-${colorClass}`} />;
       case "particulate": return (
         <div className={`flex items-center justify-center h-5 w-5 text-${colorClass}`}>
           <div className="relative">

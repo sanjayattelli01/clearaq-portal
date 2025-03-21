@@ -1,6 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Header from "./Header";
 import MetricCard from "./MetricCard";
 import AirQualityMap from "./AirQualityMap";
@@ -20,7 +21,6 @@ const AirQualityDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
 
-  // Function to load data for a specific location
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
     setError(null);
@@ -39,7 +39,6 @@ const AirQualityDashboard: React.FC = () => {
     }
   };
 
-  // Function to load data for current location
   const loadDataForCurrentLocation = async () => {
     setIsLoading(true);
     setError(null);
@@ -59,7 +58,6 @@ const AirQualityDashboard: React.FC = () => {
     }
   };
 
-  // Load historical data for all metrics
   const loadHistoricalData = () => {
     const data: Record<string, any[]> = {};
     
@@ -70,7 +68,6 @@ const AirQualityDashboard: React.FC = () => {
     setHistoricalData(data);
   };
 
-  // Function to handle refresh
   const handleRefresh = () => {
     if (airQualityData) {
       if (airQualityData.location.name === "Current Location") {
