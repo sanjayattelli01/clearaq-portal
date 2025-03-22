@@ -11,7 +11,8 @@ import {
   ThermometerSun,
   ChevronRight,
   Gauge,
-  Globe
+  Globe,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,13 +40,27 @@ const AirQualityDashboard: React.FC = () => {
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [dataSource, setDataSource] = useState<"local" | "google">("local");
+  const [citySearch, setCitySearch] = useState<string>("");
 
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const data = await fetchAirQualityDataByCity(location);
+      let data;
+      if (dataSource === "google") {
+        // For demonstration, we're still using the mock Google API function
+        // In a real implementation, we would pass the location to a Google API endpoint
+        const coordinates = {
+          latitude: Math.random() * 180 - 90,
+          longitude: Math.random() * 360 - 180
+        };
+        data = await fetchAirQualityFromGoogleAPI(coordinates);
+        data.location.name = location;
+      } else {
+        data = await fetchAirQualityDataByCity(location);
+      }
+      
       setAirQualityData(data);
       loadHistoricalData();
       toast.success(`Loaded air quality data for ${location}`);
@@ -133,6 +148,13 @@ const AirQualityDashboard: React.FC = () => {
     }
   };
 
+  const handleCitySearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (citySearch.trim()) {
+      loadDataForLocation(citySearch);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full pb-6 animate-gradient-shift">
       <div className="max-w-full mx-auto">
@@ -150,6 +172,23 @@ const AirQualityDashboard: React.FC = () => {
             <p className="text-lg text-muted-foreground mb-6">
               Get real-time air quality data for any location or use your current position
             </p>
+
+            {/* City search form */}
+            <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-6">
+              <div className="flex gap-2">
+                <Input 
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
+                  placeholder="Enter city name..."
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={isLoading || !citySearch.trim()}>
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </Button>
+              </div>
+            </form>
+
             <div className="flex flex-col items-center gap-6">
               <div className="flex justify-center gap-4">
                 <Button 
@@ -264,28 +303,27 @@ const AirQualityDashboard: React.FC = () => {
               )}
             </div>
             
-            <div className="dashboard-grid">
+            {/* Modified grid to show 4 items per row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {airQualityData ? (
                 <>
-                  <AirQualityMap 
-                    airQualityData={airQualityData} 
-                    isLoading={isLoading} 
-                  />
+                  <div className="col-span-full lg:col-span-2">
+                    <AirQualityMap 
+                      airQualityData={airQualityData} 
+                      isLoading={isLoading} 
+                    />
+                  </div>
                   
-                  <AirQualityChart 
-                    title="PM2.5 Concentration" 
-                    data={historicalData.pm25 || []} 
-                    color="pm25" 
-                    unit="µg/m³" 
-                  />
+                  <div className="col-span-full lg:col-span-2">
+                    <AirQualityChart 
+                      title="PM2.5 Concentration" 
+                      data={historicalData.pm25 || []} 
+                      color="pm25" 
+                      unit="µg/m³" 
+                    />
+                  </div>
                   
-                  <AirQualityChart 
-                    title="NO2 Concentration" 
-                    data={historicalData.no2 || []} 
-                    color="no2" 
-                    unit="ppb" 
-                  />
-                  
+                  {/* Render the metric cards in a 4-column grid */}
                   {METRICS_INFO.map((metricInfo) => (
                     <MetricCard
                       key={metricInfo.key}
@@ -345,7 +383,7 @@ const AirQualityDashboard: React.FC = () => {
             </div>
             
             {airQualityData ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {METRICS_INFO.map((metricInfo) => (
                   <QualityIndexCard
                     key={metricInfo.key}

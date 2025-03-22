@@ -40,11 +40,11 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
   
   // Get color based on quality
   const getQualityColor = (percentage: number) => {
-    if (percentage >= 80) return "air-green";
-    if (percentage >= 60) return "air-yellow";
-    if (percentage >= 40) return "air-orange";
-    if (percentage >= 20) return "air-red";
-    return "air-purple";
+    if (percentage >= 80) return "green-500";
+    if (percentage >= 60) return "yellow-500";
+    if (percentage >= 40) return "orange-500";
+    if (percentage >= 20) return "red-500";
+    return "purple-500";
   };
   
   const qualityColor = getQualityColor(qualityPercentage);
@@ -91,7 +91,8 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
           <span className="metric-unit">{value.unit}</span>
         </div>
         
-        <div className="w-full bg-secondary/30 rounded-full h-2 mt-4">
+        {/* Color gradient scale for quality index */}
+        <div className="w-full bg-secondary/30 rounded-full h-2 mt-4 overflow-hidden">
           <div 
             className={`bg-${qualityColor} h-2 rounded-full transition-all duration-1000 ease-in-out`}
             style={{ width: `${qualityPercentage}%` }}
@@ -101,6 +102,15 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
         <div className="flex justify-between mt-1 text-xs text-muted-foreground">
           <span>Poor</span>
           <span>Excellent</span>
+        </div>
+        
+        {/* Add a color scale indicator beneath the progress bar */}
+        <div className="w-full h-1 rounded-full mt-2 flex overflow-hidden">
+          <div className="bg-purple-500 h-full flex-1"></div>
+          <div className="bg-red-500 h-full flex-1"></div>
+          <div className="bg-orange-500 h-full flex-1"></div>
+          <div className="bg-yellow-500 h-full flex-1"></div>
+          <div className="bg-green-500 h-full flex-1"></div>
         </div>
       </CardContent>
     </Card>
