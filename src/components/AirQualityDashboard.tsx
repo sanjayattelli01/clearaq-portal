@@ -35,8 +35,13 @@ import {
   getHistoricalDataForMetric,
   getCityFromCoordinates
 } from "@/utils/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-const AirQualityDashboard: React.FC = () => {
+interface AirQualityDashboardProps {
+  onToggleSidebar?: () => void;
+}
+
+const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSidebar }) => {
   const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +51,7 @@ const AirQualityDashboard: React.FC = () => {
   const [citySearch, setCitySearch] = useState<string>("");
   const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
   const [lastSearchMethod, setLastSearchMethod] = useState<"city" | "coordinates" | null>(null);
+  const isMobile = useIsMobile();
   
   // Fix: Make sure we use consistent AQI values by storing the coordinates
   const loadDataForLocation = async (location: string) => {
@@ -192,20 +198,21 @@ const AirQualityDashboard: React.FC = () => {
         <Header 
           airQualityData={airQualityData} 
           isLoading={isLoading} 
-          onRefresh={handleRefresh} 
+          onRefresh={handleRefresh}
+          onToggleSidebar={onToggleSidebar}
         />
         
-        <section id="home" className="py-8 px-6">
+        <section id="home" className="py-6 px-4 md:px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
+            <h1 className="text-2xl md:text-3xl font-bold mb-3 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
               Air Quality Monitoring Dashboard
             </h1>
-            <p className="text-lg text-muted-foreground mb-6">
+            <p className="text-base md:text-lg text-muted-foreground mb-4">
               Get real-time air quality data for any location or use your current position
             </p>
 
             {/* City search form */}
-            <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-6">
+            <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-4">
               <div className="flex gap-2">
                 <Input 
                   value={citySearch}
@@ -220,11 +227,11 @@ const AirQualityDashboard: React.FC = () => {
               </div>
             </form>
 
-            <div className="flex flex-col items-center gap-6">
-              <div className="flex justify-center gap-4">
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-wrap justify-center gap-3">
                 <Button 
                   onClick={() => scrollToSection("inputs")}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-xs md:text-sm"
                 >
                   Enter Air Quality Data
                   <ChevronRight className="ml-2 h-4 w-4" />
@@ -233,9 +240,10 @@ const AirQualityDashboard: React.FC = () => {
                   variant="outline" 
                   onClick={loadDataForCurrentLocation}
                   disabled={isLoading}
+                  className="text-xs md:text-sm"
                 >
                   <MapPin className="mr-2 h-4 w-4" />
-                  Use My Location
+                  {isMobile ? "Current Location" : "Use My Location"}
                 </Button>
               </div>
               
@@ -245,12 +253,12 @@ const AirQualityDashboard: React.FC = () => {
                   <span className="text-sm text-muted-foreground">Select Data Source:</span>
                 </div>
                 <ToggleGroup type="single" defaultValue="local" value={dataSource} onValueChange={(value) => value && setDataSource(value as "local" | "google")} className="justify-center">
-                  <ToggleGroupItem value="local" className="flex gap-1">
-                    <Wind className="h-4 w-4" />
+                  <ToggleGroupItem value="local" className="flex gap-1 text-xs">
+                    <Wind className="h-3 w-3" />
                     <span>Local Data</span>
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="google" className="flex gap-1">
-                    <Globe className="h-4 w-4" />
+                  <ToggleGroupItem value="google" className="flex gap-1 text-xs">
+                    <Globe className="h-3 w-3" />
                     <span>Google API</span>
                   </ToggleGroupItem>
                 </ToggleGroup>
@@ -259,18 +267,18 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        <section id="inputs" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
+        <section id="inputs" className="py-6 px-4 md:px-6 bg-card/20 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <Wind className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-2xl font-semibold">Air Quality Inputs</h2>
+              <h2 className="text-xl md:text-2xl font-semibold">Air Quality Inputs</h2>
             </div>
             
-            <div className="glass-card p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="glass-card p-4 md:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {METRICS_INFO.map((metric) => (
                   <div key={metric.key} className="flex flex-col space-y-2">
-                    <Label htmlFor={metric.key} className="flex items-center gap-2">
+                    <Label htmlFor={metric.key} className="flex items-center gap-2 text-xs md:text-sm">
                       {metric.label}
                     </Label>
                     <Input
@@ -278,18 +286,18 @@ const AirQualityDashboard: React.FC = () => {
                       placeholder={`Enter ${metric.label}`}
                       value={formData[metric.key] || ''}
                       onChange={(e) => handleInputChange(metric.key, e.target.value)}
-                      className="backdrop-blur-sm bg-secondary/40 border-none"
+                      className="backdrop-blur-sm bg-secondary/40 border-none text-xs md:text-sm"
                     />
                   </div>
                 ))}
               </div>
               
-              <div className="flex justify-center mt-8 gap-4">
-                <Button onClick={handleSubmitData} disabled={isLoading}>
+              <div className="flex justify-center mt-6 gap-3">
+                <Button onClick={handleSubmitData} disabled={isLoading} size={isMobile ? "sm" : "default"} className="text-xs md:text-sm">
                   {isLoading ? (
                     <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                      {!isMobile && "Processing..."}
                     </>
                   ) : (
                     'Submit Data'
@@ -299,16 +307,18 @@ const AirQualityDashboard: React.FC = () => {
                   variant="outline" 
                   onClick={loadDataForCurrentLocation}
                   disabled={isLoading}
+                  size={isMobile ? "sm" : "default"}
+                  className="text-xs md:text-sm"
                 >
                   {dataSource === "google" ? (
                     <>
-                      <Globe className="mr-2 h-4 w-4" />
-                      Use Google API
+                      <Globe className="mr-2 h-3 w-3" />
+                      {!isMobile && "Use Google API"}
                     </>
                   ) : (
                     <>
-                      <MapPin className="mr-2 h-4 w-4" />
-                      Use Current Location
+                      <MapPin className="mr-2 h-3 w-3" />
+                      {isMobile ? "Current Location" : "Use Current Location"}
                     </>
                   )}
                 </Button>
@@ -317,39 +327,30 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        <section id="analysis" className="py-8 px-6">
+        <section id="analysis" className="py-6 px-4 md:px-6">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <BarChart className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-2xl font-semibold">Analysis</h2>
+              <h2 className="text-xl md:text-2xl font-semibold">Analysis</h2>
               {airQualityData?.source && (
-                <span className="ml-4 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
+                <span className="ml-4 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                   Source: {airQualityData.source}
                 </span>
               )}
             </div>
             
             {/* 4 items per row for better display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {airQualityData ? (
                 <>
-                  <div className="col-span-full lg:col-span-2">
+                  <div className="col-span-full lg:col-span-2 lg:row-span-2">
                     <AirQualityMap 
                       airQualityData={airQualityData} 
                       isLoading={isLoading} 
                     />
                   </div>
                   
-                  <div className="col-span-full lg:col-span-2">
-                    <AirQualityChart 
-                      title="PM2.5 Concentration" 
-                      data={historicalData.pm25 || []} 
-                      color="pm25" 
-                      unit="µg/m³" 
-                    />
-                  </div>
-                  
-                  {/* Render the metric cards in a 4-column grid */}
+                  {/* Render the metric charts in a 4-column grid */}
                   {METRICS_INFO.map((metricInfo) => (
                     <AirQualityChart
                       key={metricInfo.key}
@@ -402,15 +403,15 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        <section id="quality-index" className="py-8 px-6 bg-card/20 backdrop-blur-sm">
+        <section id="quality-index" className="py-6 px-4 md:px-6 bg-card/20 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <Gauge className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-2xl font-semibold">Quality Index</h2>
+              <h2 className="text-xl md:text-2xl font-semibold">Quality Index</h2>
             </div>
             
             {airQualityData ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="metrics-grid">
                 {METRICS_INFO.map((metricInfo) => (
                   <QualityIndexCard
                     key={metricInfo.key}
@@ -429,11 +430,11 @@ const AirQualityDashboard: React.FC = () => {
           </div>
         </section>
         
-        <section id="final-air-quality" className="py-8 px-6">
+        <section id="final-air-quality" className="py-6 px-4 md:px-6">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <ThermometerSun className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-2xl font-semibold">Final Air Quality</h2>
+              <h2 className="text-xl md:text-2xl font-semibold">Final Air Quality</h2>
             </div>
             
             {airQualityData ? (

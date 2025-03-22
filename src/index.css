@@ -135,7 +135,7 @@
     @apply glass-card p-0 overflow-hidden;
     grid-column: span 2;
     grid-row: span 2;
-    min-height: 400px;
+    min-height: 300px;
   }
 
   .aqi-indicator {
@@ -178,4 +178,89 @@
     @apply absolute top-0 -left-[100%] w-[200%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent;
     animation: shimmer 2s infinite linear;
   }
+
+  /* Heat map styling */
+  .heat-map-layer {
+    @apply absolute inset-0 bg-opacity-70 z-10;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 0, 0, 0.4) 0%,
+      rgba(255, 165, 0, 0.3) 30%,
+      rgba(255, 255, 0, 0.2) 60%,
+      rgba(0, 128, 0, 0.1) 80%,
+      transparent 100%
+    );
+  }
+
+  /* Smaller charts */
+  .mini-chart {
+    @apply h-[120px] md:h-[150px] w-full;
+  }
+
+  /* Mobile sidebar styles */
+  .sidebar-toggle-button {
+    @apply fixed bottom-4 right-4 z-50 rounded-full h-12 w-12 bg-primary text-white flex items-center justify-center shadow-lg md:hidden;
+  }
+  
+  /* Only show smaller labels on mobile */
+  .metrics-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-3;
+  }
+  
+  @keyframes pulse-marker {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.2); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 0.7; }
+  }
+  
+  .map-marker {
+    @apply absolute z-20 transform -translate-x-1/2 -translate-y-1/2;
+    animation: pulse-marker 2s infinite ease-in-out;
+  }
+  
+  .map-marker-pin {
+    @apply w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-lg;
+  }
+  
+  .map-marker-label {
+    @apply absolute -top-10 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap;
+  }
+  
+  /* Heat map gradient scale */
+  .heat-scale {
+    @apply w-full h-2 rounded-full mb-2 flex overflow-hidden;
+  }
+  
+  .heat-scale-item {
+    @apply h-full flex-1;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(50%); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile sidebar animation */
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.sidebar-slide-in {
+  animation: slideIn 0.3s forwards;
+}
+
+.sidebar-slide-out {
+  animation: slideOut 0.3s forwards;
 }

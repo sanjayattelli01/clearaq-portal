@@ -45,15 +45,15 @@ const AirQualityChart: React.FC<AirQualityChartProps> = ({ title, data, color, u
   const colorKey = color in colorMap ? color : "air-blue";
   
   return (
-    <Card className="glass-card col-span-2 animate-fade-in">
-      <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base font-medium">{title}</CardTitle>
-        <Badge variant="outline" className="bg-transparent">
-          Last 24 hours
+    <Card className="glass-card animate-fade-in">
+      <CardHeader className="p-2 pb-0 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Badge variant="outline" className="bg-transparent text-xs px-1">
+          Last 24h
         </Badge>
       </CardHeader>
-      <CardContent className="p-4">
-        <div className="h-[180px] w-full">
+      <CardContent className="p-2">
+        <div className="mini-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
@@ -70,22 +70,23 @@ const AirQualityChart: React.FC<AirQualityChartProps> = ({ title, data, color, u
                 dataKey="date" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#999', fontSize: 10 }}
+                tick={{ fill: '#999', fontSize: 8 }}
+                tickFormatter={(value) => value.toString().split(' ')[0]} // Show just hours
               />
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#999', fontSize: 10 }}
-                width={30}
+                tick={{ fill: '#999', fontSize: 8 }}
+                width={20}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke={`var(--${colorKey}-light, #4facfe)`}
-                strokeWidth={2}
+                strokeWidth={1.5}
                 dot={false}
-                activeDot={{ r: 5, fill: `var(--${colorKey}, #2b8af9)` }}
+                activeDot={{ r: 4, fill: `var(--${colorKey}, #2b8af9)` }}
                 fillOpacity={1}
                 fill={`url(#gradient-${colorKey})`}
               />

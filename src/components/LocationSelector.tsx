@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPin, Search, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface LocationSelectorProps {
   onLocationSelected: (location: string) => void;
@@ -20,6 +21,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   currentLocation
 }) => {
   const [location, setLocation] = useState("");
+  const isMobile = useIsMobile();
   
   // Update the input field when currentLocation changes
   useEffect(() => {
@@ -49,14 +51,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
 
   return (
     <Card className="glass-card animate-fade-in">
-      <CardHeader className="p-4 pb-0">
+      <CardHeader className="p-3 pb-0">
         <CardTitle className="text-base font-medium flex items-center">
           <MapPin className="h-4 w-4 mr-2" />
           Location
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="p-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex w-full items-center space-x-2">
             <Input
               type="text"
@@ -74,27 +76,27 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
           <Button
             type="button"
             variant="outline"
-            className="w-full backdrop-blur-sm bg-secondary/20"
+            className="w-full backdrop-blur-sm bg-secondary/20 text-xs md:text-sm"
             onClick={handleDetectLocation}
             disabled={isLoading}
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Detecting...
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                {!isMobile && "Detecting..."}
               </>
             ) : (
               <>
-                <MapPin className="mr-2 h-4 w-4" />
-                Use Current Location
+                <MapPin className="mr-1 h-3 w-3" />
+                {isMobile ? "Current Location" : "Use Current Location"}
               </>
             )}
           </Button>
           
           {navigator.geolocation === undefined && (
-            <div className="text-xs text-orange-500 flex items-center mt-2">
+            <div className="text-xs text-orange-500 flex items-center mt-1">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Geolocation is not available in your browser
+              Geolocation unavailable
             </div>
           )}
         </form>
