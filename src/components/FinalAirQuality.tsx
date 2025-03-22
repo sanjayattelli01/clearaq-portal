@@ -85,7 +85,7 @@ const FinalAirQuality: React.FC<FinalAirQualityProps> = ({ airQualityData }) => 
   };
   
   return (
-    <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-md animate-fade-in">
+    <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-md animate-fade-in max-w-full mx-auto">
       <CardContent className="p-0">
         {/* Google-style header */}
         <div className="p-4 bg-background border-b">

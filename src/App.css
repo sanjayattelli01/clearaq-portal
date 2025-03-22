@@ -6,6 +6,14 @@
   padding: 0;
 }
 
+/* Fixed sidebar styles */
+.sidebar-fixed {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
 /* Keep animation keyframes for logos if needed */
 @keyframes logo-spin {
   from {

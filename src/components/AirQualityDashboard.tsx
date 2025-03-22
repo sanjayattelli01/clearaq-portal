@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
@@ -53,7 +52,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
   const [lastSearchMethod, setLastSearchMethod] = useState<"city" | "coordinates" | null>(null);
   const isMobile = useIsMobile();
   
-  // Fix: Make sure we use consistent AQI values by storing the coordinates
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
     setError(null);
@@ -61,8 +59,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
     try {
       let data;
       if (dataSource === "google") {
-        // For demonstration, we're still using the mock Google API function
-        // In a real implementation, we would pass the location to a Google API endpoint
         const coordinates = {
           latitude: Math.random() * 180 - 90,
           longitude: Math.random() * 360 - 180
@@ -74,15 +70,12 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
       }
       
       setAirQualityData(data);
-      // Store location method
       setLastSearchMethod("city");
       
-      // Get historical data for each metric
       loadHistoricalDataForAllMetrics();
       
       toast.success(`Loaded air quality data for ${location}`);
       
-      // Scroll to analysis section
       scrollToSection("analysis");
     } catch (err) {
       console.error("Error fetching data by city:", err);
@@ -101,7 +94,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
       const coords = await getUserCurrentLocation();
       setCoordinates(coords);
       
-      // Try to get the city name first
       const cityName = await getCityFromCoordinates(coords);
       
       let data;
@@ -111,23 +103,18 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
         data = await fetchAirQualityData(coords);
       }
       
-      // If we couldn't get a city name from coordinates, use a fallback
       if (data.location.name === "Unknown Location" || data.location.name === "Current Location") {
         toast.error("Unable to determine your location name. Using generic data.");
       } else {
         toast.success(`Loaded air quality data for ${data.location.name}`);
-        // Update search input with found location
         setCitySearch(data.location.name);
       }
       
       setAirQualityData(data);
-      // Store location method
       setLastSearchMethod("coordinates");
       
-      // Get historical data for each metric
       loadHistoricalDataForAllMetrics();
       
-      // Scroll to analysis section
       scrollToSection("analysis");
     } catch (err) {
       console.error("Error fetching data for current location:", err);
@@ -211,7 +198,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
               Get real-time air quality data for any location or use your current position
             </p>
 
-            {/* City search form */}
             <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-4">
               <div className="flex gap-2">
                 <Input 
@@ -339,7 +325,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
               )}
             </div>
             
-            {/* 4 items per row for better display */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {airQualityData ? (
                 <>
@@ -350,7 +335,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
                     />
                   </div>
                   
-                  {/* Render the metric charts in a 4-column grid */}
                   {METRICS_INFO.map((metricInfo) => (
                     <AirQualityChart
                       key={metricInfo.key}
@@ -438,7 +422,9 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
             </div>
             
             {airQualityData ? (
-              <FinalAirQuality airQualityData={airQualityData} />
+              <div className="w-full px-0 md:px-0 lg:px-0">
+                <FinalAirQuality airQualityData={airQualityData} />
+              </div>
             ) : (
               <div className="glass-card p-6 text-center">
                 <p className="text-muted-foreground">
