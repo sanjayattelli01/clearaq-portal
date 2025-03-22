@@ -1,23 +1,32 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Search, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface LocationSelectorProps {
   onLocationSelected: (location: string) => void;
   onDetectLocation: () => void;
   isLoading: boolean;
+  currentLocation?: string;
 }
 
 const LocationSelector: React.FC<LocationSelectorProps> = ({ 
   onLocationSelected, 
   onDetectLocation,
-  isLoading 
+  isLoading,
+  currentLocation
 }) => {
   const [location, setLocation] = useState("");
+  
+  // Update the input field when currentLocation changes
+  useEffect(() => {
+    if (currentLocation && currentLocation !== "Unknown Location" && currentLocation !== "Current Location") {
+      setLocation(currentLocation);
+    }
+  }, [currentLocation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,11 +36,24 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
       toast.error("Please enter a location");
     }
   };
+  
+  const handleDetectLocation = () => {
+    // First check if geolocation is available
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    
+    onDetectLocation();
+  };
 
   return (
     <Card className="glass-card animate-fade-in">
       <CardHeader className="p-4 pb-0">
-        <CardTitle className="text-base font-medium">Location</CardTitle>
+        <CardTitle className="text-base font-medium flex items-center">
+          <MapPin className="h-4 w-4 mr-2" />
+          Location
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,12 +75,28 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
             type="button"
             variant="outline"
             className="w-full backdrop-blur-sm bg-secondary/20"
-            onClick={onDetectLocation}
+            onClick={handleDetectLocation}
             disabled={isLoading}
           >
-            <MapPin className="mr-2 h-4 w-4" />
-            {isLoading ? "Detecting..." : "Use Current Location"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Detecting...
+              </>
+            ) : (
+              <>
+                <MapPin className="mr-2 h-4 w-4" />
+                Use Current Location
+              </>
+            )}
           </Button>
+          
+          {navigator.geolocation === undefined && (
+            <div className="text-xs text-orange-500 flex items-center mt-2">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Geolocation is not available in your browser
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>

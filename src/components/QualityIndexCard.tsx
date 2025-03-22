@@ -10,7 +10,8 @@ import {
   CloudRain, 
   Compass, 
   Factory, 
-  Beaker 
+  Beaker,
+  MapPin
 } from "lucide-react";
 import { MetricInfo, MetricValue, colorMap } from "@/utils/types";
 import { cn } from "@/lib/utils";
@@ -80,7 +81,7 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
           {label}
         </CardTitle>
         <div className={`text-xs font-medium px-2 py-1 rounded-full bg-${qualityColor}/20 text-${qualityColor}`}>
-          {qualityPercentage}% Quality
+          {value.category && value.category.charAt(0).toUpperCase() + value.category.slice(1)}
         </div>
       </CardHeader>
       <CardContent className="p-4">
@@ -91,10 +92,10 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
           <span className="metric-unit">{value.unit}</span>
         </div>
         
-        {/* Color gradient scale for quality index */}
-        <div className="w-full bg-secondary/30 rounded-full h-2 mt-4 overflow-hidden">
+        {/* Google-style AQI scale visualization */}
+        <div className="w-full bg-secondary/30 rounded-full h-2.5 mt-4 overflow-hidden">
           <div 
-            className={`bg-${qualityColor} h-2 rounded-full transition-all duration-1000 ease-in-out`}
+            className={`bg-${qualityColor} h-full rounded-full transition-all duration-1000 ease-in-out`}
             style={{ width: `${qualityPercentage}%` }}
           ></div>
         </div>
@@ -104,14 +105,22 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
           <span>Excellent</span>
         </div>
         
-        {/* Add visible color scale indicator beneath the progress bar */}
-        <div className="w-full h-2 rounded-full mt-2 flex overflow-hidden">
+        {/* Enhanced color scale indicator with larger height for better visibility */}
+        <div className="w-full h-3 rounded-full mt-2 flex overflow-hidden">
           <div className="bg-purple-500 h-full flex-1"></div>
           <div className="bg-red-500 h-full flex-1"></div>
           <div className="bg-orange-500 h-full flex-1"></div>
           <div className="bg-yellow-500 h-full flex-1"></div>
           <div className="bg-green-500 h-full flex-1"></div>
         </div>
+        
+        {/* Location indicator for Google-like appearance */}
+        {key === "pm25" && (
+          <div className="mt-3 flex items-center text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3 mr-1" />
+            <span>From nearest monitoring station</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

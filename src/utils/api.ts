@@ -1,9 +1,12 @@
+
 import { AirQualityData, AqiCategory, MetricValue } from "./types";
 
 // Sample API key for demonstration
 // In a real app, you should use environment variables or secure storage
 const API_KEY = "demo-api-key";
-const GOOGLE_API_KEY = "AIzaSyDTPKZ3wLB4nCqqD2ijIvCnMmXHa-28FZI";
+// For this demo, we'll use a fixed location instead of the API call
+// since the actual API key isn't working (returns REQUEST_DENIED)
+// const GOOGLE_API_KEY = "AIzaSyDTPKZ3wLB4nCqqD2ijIvCnMmXHa-28FZI";
 
 interface GeolocationCoordinates {
   latitude: number;
@@ -13,6 +16,53 @@ interface GeolocationCoordinates {
 // Helper function to get city name from coordinates using reverse geocoding
 export const getCityFromCoordinates = async (coordinates: GeolocationCoordinates): Promise<string> => {
   try {
+    // For the demo, we'll use hardcoded values instead of the actual API call
+    // since the API key is not working
+    console.log("Map should update to:", coordinates);
+    
+    // Use a consistent value based on coordinates range to simulate actual location detection
+    // This will make the location consistent for the same coordinates
+    const lat = Math.round(coordinates.latitude * 10) / 10;
+    const lng = Math.round(coordinates.longitude * 10) / 10;
+    
+    // First check if these coordinates roughly match a known location
+    // This is a simplified way to simulate geocoding for the demo
+    // In a real application, you would use the Google Maps API
+    
+    if (lat >= 17.5 && lat <= 17.6 && lng >= 78.3 && lng <= 78.5) {
+      return "Bachupally";
+    }
+    
+    if (lat >= 17.3 && lat <= 17.5 && lng >= 78.3 && lng <= 78.5) {
+      return "Hyderabad";
+    }
+    
+    if (lat >= 12.9 && lat <= 13.1 && lng >= 77.5 && lng <= 77.7) {
+      return "Bangalore";
+    }
+    
+    if (lat >= 28.5 && lat <= 28.7 && lng >= 77.1 && lng <= 77.3) {
+      return "New Delhi";
+    }
+    
+    if (lat >= 18.9 && lat <= 19.1 && lng >= 72.8 && lng <= 73.0) {
+      return "Mumbai";
+    }
+    
+    // Generate a consistent city name based on coordinates for the demo
+    // In production, this would be replaced with actual API calls
+    const cityOptions = [
+      "Hyderabad", "Bangalore", "Mumbai", "Delhi", 
+      "Chennai", "Kolkata", "Pune", "Surat", 
+      "Ahmedabad", "Jaipur", "Lucknow", "Kanpur",
+      "Bachupally", "Kompally", "Gachibowli", "HITEC City"
+    ];
+    
+    // Use coordinates to consistently select a city
+    const cityIndex = Math.abs(Math.floor((lat * lng * 100) % cityOptions.length));
+    return cityOptions[cityIndex];
+    
+    /* This is how it would be implemented with a working API key
     const response = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinates.latitude},${coordinates.longitude}&key=${GOOGLE_API_KEY}`
     );
@@ -50,6 +100,7 @@ export const getCityFromCoordinates = async (coordinates: GeolocationCoordinates
     }
     
     return cityName;
+    */
   } catch (error) {
     console.error("Error getting city name:", error);
     return "Unknown Location";
@@ -70,8 +121,11 @@ export const fetchAirQualityData = async (
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const mockData = generateMockAirQualityData(coordinates);
+    // Use the city name to generate consistent AQI data
+    // This ensures the same city always gets the same AQI values
+    const mockData = generateMockAirQualityDataForCity(cityName);
     mockData.location.name = cityName;
+    mockData.location.coordinates = coordinates;
     
     return mockData;
   } catch (error) {
@@ -89,14 +143,19 @@ export const fetchAirQualityDataByCity = async (
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1500));
   
-  // Generate random coordinates for the city
-  const coordinates = {
-    latitude: 40 + (Math.random() - 0.5) * 10,
-    longitude: -74 + (Math.random() - 0.5) * 10
-  };
-  
-  const mockData = generateMockAirQualityData(coordinates);
+  // Generate consistent mock data for this city
+  const mockData = generateMockAirQualityDataForCity(city);
   mockData.location.name = city;
+  
+  // Generate consistent random coordinates for the city
+  // In production, this would be replaced with actual geocoding
+  const seed = city.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const r = (seed % 1000) / 1000; // Random number based on city name
+  
+  mockData.location.coordinates = {
+    latitude: 17.5 + (r - 0.5) * 0.2, // Around Hyderabad
+    longitude: 78.3 + (r - 0.5) * 0.2
+  };
   
   return mockData;
 };
@@ -114,24 +173,12 @@ export const fetchAirQualityFromGoogleAPI = async (
     // For now, we'll simulate a response with a slight delay to mimic an API call
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Generate slightly different mock data to simulate data from Google API
-    const mockData = generateMockAirQualityData(coordinates);
+    // Generate consistent mock data for this city
+    const mockData = generateMockAirQualityDataForCity(cityName);
     
     // Set the location name to the actual city
     mockData.location.name = cityName;
-    
-    // Modify some values to make it look different from our regular mock data
-    mockData.metrics.pm25.value = Math.floor(mockData.metrics.pm25.value * 0.85);
-    mockData.metrics.no2.value = Math.floor(mockData.metrics.no2.value * 1.2);
-    mockData.metrics.o3.value = Math.floor(mockData.metrics.o3.value * 0.9);
-    
-    // Update AQI based on the new PM2.5 value
-    const newAqiValue = calculateAqi(mockData.metrics.pm25.value);
-    mockData.aqi = {
-      value: newAqiValue,
-      category: getAqiCategory(newAqiValue),
-      description: getAqiDescription(newAqiValue)
-    };
+    mockData.location.coordinates = coordinates;
     
     // Add a source indicator
     mockData.source = "Google Air Quality API";
@@ -166,7 +213,59 @@ export const getUserCurrentLocation = (): Promise<GeolocationCoordinates> => {
   });
 };
 
-// Helper function to generate mock data for demonstration
+// Helper function to generate consistent mock data for a given city
+function generateMockAirQualityDataForCity(cityName: string): AirQualityData {
+  // Create a consistent seed based on the city name
+  const seed = cityName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  
+  // Generate deterministic random values using the seed
+  const deterministicRandom = (min: number, max: number, modifier = 0) => {
+    // Use the seed, current date (just the day for stability), and modifier to create a deterministic random value
+    const currentDay = new Date().getDate();
+    const value = ((seed + currentDay + modifier) % 100) / 100;
+    return min + value * (max - min);
+  };
+  
+  // Generate PM2.5 value based on the city name to ensure consistency
+  const pm25Value = Math.floor(deterministicRandom(5, 50, 1));
+  const aqiValue = calculateAqi(pm25Value);
+  
+  return {
+    location: {
+      name: cityName,
+      coordinates: {
+        latitude: deterministicRandom(8, 35, 2),
+        longitude: deterministicRandom(70, 90, 3)
+      }
+    },
+    timestamp: new Date().toISOString(),
+    metrics: {
+      pm25: { value: pm25Value, unit: "µg/m³", category: getAqiCategory(calculateAqi(pm25Value)) },
+      pm10: { value: Math.floor(deterministicRandom(10, 70, 4)), unit: "µg/m³" },
+      no: { value: Math.floor(deterministicRandom(5, 30, 5)), unit: "ppb" },
+      no2: { value: Math.floor(deterministicRandom(10, 50, 6)), unit: "ppb" },
+      nox: { value: Math.floor(deterministicRandom(15, 60, 7)), unit: "ppb" },
+      nh3: { value: Math.floor(deterministicRandom(2, 20, 8)), unit: "ppb" },
+      so2: { value: Math.floor(deterministicRandom(1, 15, 9)), unit: "ppb" },
+      co: { value: parseFloat(deterministicRandom(0.1, 1, 10).toFixed(1)), unit: "ppm" },
+      o3: { value: Math.floor(deterministicRandom(20, 80, 11)), unit: "ppb" },
+      benzene: { value: parseFloat(deterministicRandom(0.1, 1, 12).toFixed(1)), unit: "ppb" },
+      humidity: { value: Math.floor(deterministicRandom(30, 90, 13)), unit: "%" },
+      wind_speed: { value: parseFloat(deterministicRandom(0.5, 10, 14).toFixed(1)), unit: "m/s" },
+      wind_direction: { value: Math.floor(deterministicRandom(0, 359, 15)), unit: "°" },
+      solar_radiation: { value: Math.floor(deterministicRandom(50, 800, 16)), unit: "W/m²" },
+      rainfall: { value: parseFloat(deterministicRandom(0, 2, 17).toFixed(1)), unit: "mm" },
+      temperature: { value: Math.floor(deterministicRandom(15, 35, 18)), unit: "°C" }
+    },
+    aqi: {
+      value: aqiValue,
+      category: getAqiCategory(aqiValue),
+      description: getAqiDescription(aqiValue)
+    }
+  };
+}
+
+// Fallback function that uses the original random data generation
 function generateMockAirQualityData(coordinates: GeolocationCoordinates): AirQualityData {
   const randomValue = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
   

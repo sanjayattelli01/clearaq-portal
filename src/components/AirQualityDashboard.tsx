@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Gauge,
   Globe,
-  Search
+  Search,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +25,15 @@ import AirQualityMap from "./AirQualityMap";
 import AirQualityChart from "./AirQualityChart";
 import QualityIndexCard from "./QualityIndexCard";
 import FinalAirQuality from "./FinalAirQuality";
+import LocationSelector from "./LocationSelector";
 import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
   fetchAirQualityData, 
   fetchAirQualityDataByCity, 
   fetchAirQualityFromGoogleAPI,
   getUserCurrentLocation,
-  getHistoricalDataForMetric
+  getHistoricalDataForMetric,
+  getCityFromCoordinates
 } from "@/utils/api";
 
 const AirQualityDashboard: React.FC = () => {
@@ -41,7 +44,10 @@ const AirQualityDashboard: React.FC = () => {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [dataSource, setDataSource] = useState<"local" | "google">("local");
   const [citySearch, setCitySearch] = useState<string>("");
-
+  const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
+  const [lastSearchMethod, setLastSearchMethod] = useState<"city" | "coordinates" | null>(null);
+  
+  // Fix: Make sure we use consistent AQI values by storing the coordinates
   const loadDataForLocation = async (location: string) => {
     setIsLoading(true);
     setError(null);
@@ -62,13 +68,16 @@ const AirQualityDashboard: React.FC = () => {
       }
       
       setAirQualityData(data);
-      loadHistoricalData();
+      // Store location method
+      setLastSearchMethod("city");
+      
+      // Get historical data for each metric
+      loadHistoricalDataForAllMetrics();
+      
       toast.success(`Loaded air quality data for ${location}`);
       
-      const analysisSection = document.getElementById("analysis");
-      if (analysisSection) {
-        analysisSection.scrollIntoView({ behavior: 'smooth' });
-      }
+      // Scroll to analysis section
+      scrollToSection("analysis");
     } catch (err) {
       console.error("Error fetching data by city:", err);
       setError("Failed to load air quality data for this location");
@@ -83,24 +92,37 @@ const AirQualityDashboard: React.FC = () => {
     setError(null);
     
     try {
-      const coordinates = await getUserCurrentLocation();
+      const coords = await getUserCurrentLocation();
+      setCoordinates(coords);
+      
+      // Try to get the city name first
+      const cityName = await getCityFromCoordinates(coords);
       
       let data;
       if (dataSource === "google") {
-        data = await fetchAirQualityFromGoogleAPI(coordinates);
-        toast.success(`Loaded air quality data from Google API for ${data.location.name}`);
+        data = await fetchAirQualityFromGoogleAPI(coords);
       } else {
-        data = await fetchAirQualityData(coordinates);
+        data = await fetchAirQualityData(coords);
+      }
+      
+      // If we couldn't get a city name from coordinates, use a fallback
+      if (data.location.name === "Unknown Location" || data.location.name === "Current Location") {
+        toast.error("Unable to determine your location name. Using generic data.");
+      } else {
         toast.success(`Loaded air quality data for ${data.location.name}`);
+        // Update search input with found location
+        setCitySearch(data.location.name);
       }
       
       setAirQualityData(data);
-      loadHistoricalData();
+      // Store location method
+      setLastSearchMethod("coordinates");
       
-      const analysisSection = document.getElementById("analysis");
-      if (analysisSection) {
-        analysisSection.scrollIntoView({ behavior: 'smooth' });
-      }
+      // Get historical data for each metric
+      loadHistoricalDataForAllMetrics();
+      
+      // Scroll to analysis section
+      scrollToSection("analysis");
     } catch (err) {
       console.error("Error fetching data for current location:", err);
       setError(`Failed to load air quality data from ${dataSource === "google" ? "Google API" : "your location"}`);
@@ -110,7 +132,7 @@ const AirQualityDashboard: React.FC = () => {
     }
   };
 
-  const loadHistoricalData = () => {
+  const loadHistoricalDataForAllMetrics = () => {
     const data: Record<string, any[]> = {};
     
     METRICS_INFO.forEach(metric => {
@@ -140,10 +162,12 @@ const AirQualityDashboard: React.FC = () => {
 
   const handleRefresh = () => {
     if (airQualityData) {
-      if (airQualityData.location.name === "Current Location") {
+      if (lastSearchMethod === "coordinates" && coordinates) {
         loadDataForCurrentLocation();
-      } else {
+      } else if (airQualityData.location.name) {
         loadDataForLocation(airQualityData.location.name);
+      } else {
+        loadDataForCurrentLocation();
       }
     }
   };
@@ -152,6 +176,13 @@ const AirQualityDashboard: React.FC = () => {
     e.preventDefault();
     if (citySearch.trim()) {
       loadDataForLocation(citySearch);
+    }
+  };
+  
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -192,12 +223,7 @@ const AirQualityDashboard: React.FC = () => {
             <div className="flex flex-col items-center gap-6">
               <div className="flex justify-center gap-4">
                 <Button 
-                  onClick={() => {
-                    const inputsSection = document.getElementById("inputs");
-                    if (inputsSection) {
-                      inputsSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
+                  onClick={() => scrollToSection("inputs")}
                   className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
                 >
                   Enter Air Quality Data
@@ -303,7 +329,7 @@ const AirQualityDashboard: React.FC = () => {
               )}
             </div>
             
-            {/* Modified grid to show 4 items per row */}
+            {/* 4 items per row for better display */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {airQualityData ? (
                 <>
@@ -325,11 +351,12 @@ const AirQualityDashboard: React.FC = () => {
                   
                   {/* Render the metric cards in a 4-column grid */}
                   {METRICS_INFO.map((metricInfo) => (
-                    <MetricCard
+                    <AirQualityChart
                       key={metricInfo.key}
-                      metricInfo={metricInfo}
-                      value={airQualityData.metrics[metricInfo.key]}
-                      historical={historicalData[metricInfo.key]}
+                      title={`${metricInfo.label} Trend`}
+                      data={historicalData[metricInfo.key] || []} 
+                      color={metricInfo.colorKey}
+                      unit={airQualityData.metrics[metricInfo.key].unit}
                     />
                   ))}
                 </>
