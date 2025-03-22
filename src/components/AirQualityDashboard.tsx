@@ -88,10 +88,10 @@ const AirQualityDashboard: React.FC = () => {
       let data;
       if (dataSource === "google") {
         data = await fetchAirQualityFromGoogleAPI(coordinates);
-        toast.success("Loaded air quality data from Google API");
+        toast.success(`Loaded air quality data from Google API for ${data.location.name}`);
       } else {
         data = await fetchAirQualityData(coordinates);
-        toast.success("Loaded air quality data for your location");
+        toast.success(`Loaded air quality data for ${data.location.name}`);
       }
       
       setAirQualityData(data);

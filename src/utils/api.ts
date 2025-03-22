@@ -1,4 +1,3 @@
-
 import { AirQualityData, AqiCategory, MetricValue } from "./types";
 
 // Sample API key for demonstration
@@ -11,6 +10,52 @@ interface GeolocationCoordinates {
   longitude: number;
 }
 
+// Helper function to get city name from coordinates using reverse geocoding
+export const getCityFromCoordinates = async (coordinates: GeolocationCoordinates): Promise<string> => {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinates.latitude},${coordinates.longitude}&key=${GOOGLE_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch location data');
+    }
+    
+    const data = await response.json();
+    
+    if (data.status !== "OK" || !data.results || data.results.length === 0) {
+      console.error("Geocoding API error:", data.status);
+      return "Unknown Location";
+    }
+    
+    // Extract city from address components
+    let cityName = "Unknown Location";
+    
+    // Loop through address components to find the locality (city)
+    for (const result of data.results) {
+      for (const component of result.address_components) {
+        if (component.types.includes("locality") || component.types.includes("administrative_area_level_2")) {
+          cityName = component.long_name;
+          return cityName;
+        }
+      }
+      
+      // If no locality found, try to use a less specific component
+      for (const component of result.address_components) {
+        if (component.types.includes("administrative_area_level_1")) {
+          cityName = component.long_name;
+          return cityName;
+        }
+      }
+    }
+    
+    return cityName;
+  } catch (error) {
+    console.error("Error getting city name:", error);
+    return "Unknown Location";
+  }
+};
+
 export const fetchAirQualityData = async (
   coordinates: GeolocationCoordinates
 ): Promise<AirQualityData> => {
@@ -18,10 +63,21 @@ export const fetchAirQualityData = async (
   // For this demo, we'll return mock data
   console.log("Fetching air quality data for coordinates:", coordinates);
   
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  return generateMockAirQualityData(coordinates);
+  try {
+    // Get the actual city name from coordinates
+    const cityName = await getCityFromCoordinates(coordinates);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const mockData = generateMockAirQualityData(coordinates);
+    mockData.location.name = cityName;
+    
+    return mockData;
+  } catch (error) {
+    console.error("Error in fetchAirQualityData:", error);
+    return generateMockAirQualityData(coordinates);
+  }
 };
 
 export const fetchAirQualityDataByCity = async (
@@ -51,12 +107,18 @@ export const fetchAirQualityFromGoogleAPI = async (
   console.log("Fetching air quality data from Google API for coordinates:", coordinates);
   
   try {
+    // Get the actual city name from coordinates
+    const cityName = await getCityFromCoordinates(coordinates);
+    
     // In a real implementation, this would make an actual API request to Google's Air Quality API
     // For now, we'll simulate a response with a slight delay to mimic an API call
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Generate slightly different mock data to simulate data from Google API
     const mockData = generateMockAirQualityData(coordinates);
+    
+    // Set the location name to the actual city
+    mockData.location.name = cityName;
     
     // Modify some values to make it look different from our regular mock data
     mockData.metrics.pm25.value = Math.floor(mockData.metrics.pm25.value * 0.85);

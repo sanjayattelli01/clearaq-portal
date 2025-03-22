@@ -104,8 +104,8 @@ const QualityIndexCard: React.FC<QualityIndexCardProps> = ({ metricInfo, value }
           <span>Excellent</span>
         </div>
         
-        {/* Add a color scale indicator beneath the progress bar */}
-        <div className="w-full h-1 rounded-full mt-2 flex overflow-hidden">
+        {/* Add visible color scale indicator beneath the progress bar */}
+        <div className="w-full h-2 rounded-full mt-2 flex overflow-hidden">
           <div className="bg-purple-500 h-full flex-1"></div>
           <div className="bg-red-500 h-full flex-1"></div>
           <div className="bg-orange-500 h-full flex-1"></div>
