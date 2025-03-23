@@ -1,9 +1,10 @@
-
 import { AirQualityData, AqiCategory, MetricValue } from "./types";
 
 // Sample API key for demonstration
 // In a real app, you should use environment variables or secure storage
 const API_KEY = "demo-api-key";
+// Open Weather API key
+const OPEN_WEATHER_API_KEY = "2fcccbbbe5834dbbeb2c6460c04ef648";
 // For this demo, we'll use a fixed location instead of the API call
 // since the actual API key isn't working (returns REQUEST_DENIED)
 // const GOOGLE_API_KEY = "AIzaSyDTPKZ3wLB4nCqqD2ijIvCnMmXHa-28FZI";
@@ -62,51 +63,162 @@ export const getCityFromCoordinates = async (coordinates: GeolocationCoordinates
     const cityIndex = Math.abs(Math.floor((lat * lng * 100) % cityOptions.length));
     return cityOptions[cityIndex];
     
-    /* This is how it would be implemented with a working API key
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinates.latitude},${coordinates.longitude}&key=${GOOGLE_API_KEY}`
-    );
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch location data');
-    }
-    
-    const data = await response.json();
-    
-    if (data.status !== "OK" || !data.results || data.results.length === 0) {
-      console.error("Geocoding API error:", data.status);
-      return "Unknown Location";
-    }
-    
-    // Extract city from address components
-    let cityName = "Unknown Location";
-    
-    // Loop through address components to find the locality (city)
-    for (const result of data.results) {
-      for (const component of result.address_components) {
-        if (component.types.includes("locality") || component.types.includes("administrative_area_level_2")) {
-          cityName = component.long_name;
-          return cityName;
-        }
-      }
-      
-      // If no locality found, try to use a less specific component
-      for (const component of result.address_components) {
-        if (component.types.includes("administrative_area_level_1")) {
-          cityName = component.long_name;
-          return cityName;
-        }
-      }
-    }
-    
-    return cityName;
-    */
+    /* This is how it would be implemented with a working API key */
   } catch (error) {
     console.error("Error getting city name:", error);
     return "Unknown Location";
   }
 };
 
+// Fetch air quality data from Open Weather API
+export const fetchAirQualityFromOpenWeather = async (
+  coordinates: GeolocationCoordinates
+): Promise<AirQualityData> => {
+  console.log("Fetching air quality data from Open Weather API for coordinates:", coordinates);
+  
+  try {
+    // Get the actual city name from coordinates
+    const cityName = await getCityFromCoordinates(coordinates);
+    
+    // Make a real API call to Open Weather API
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/air_pollution?lat=${coordinates.latitude}&lon=${coordinates.longitude}&appid=${OPEN_WEATHER_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Open Weather API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Open Weather API response:", data);
+    
+    // Transform the Open Weather API data to our format
+    const aqi = data.list[0].main.aqi; // OpenWeather AQI is 1-5 scale
+    const convertedAqi = convertOpenWeatherAqiToStandard(aqi);
+    
+    // Map Open Weather components to our metrics format
+    const mockData: AirQualityData = {
+      location: {
+        name: cityName,
+        coordinates
+      },
+      timestamp: new Date().toISOString(),
+      metrics: {
+        pm25: { 
+          value: data.list[0].components.pm2_5 || 0, 
+          unit: "µg/m³", 
+          category: getAqiCategory(convertedAqi) 
+        },
+        pm10: { 
+          value: data.list[0].components.pm10 || 0, 
+          unit: "µg/m³" 
+        },
+        no: { 
+          value: data.list[0].components.no || 0, 
+          unit: "ppb" 
+        },
+        no2: { 
+          value: data.list[0].components.no2 || 0, 
+          unit: "ppb" 
+        },
+        nox: { 
+          value: (data.list[0].components.no || 0) + (data.list[0].components.no2 || 0), 
+          unit: "ppb" 
+        },
+        nh3: { 
+          value: data.list[0].components.nh3 || 0, 
+          unit: "ppb" 
+        },
+        so2: { 
+          value: data.list[0].components.so2 || 0, 
+          unit: "ppb" 
+        },
+        co: { 
+          value: data.list[0].components.co || 0, 
+          unit: "ppm" 
+        },
+        o3: { 
+          value: data.list[0].components.o3 || 0, 
+          unit: "ppb" 
+        },
+        // Fill remaining metrics with mock data
+        benzene: { value: parseFloat(Math.random().toFixed(1)), unit: "ppb" },
+        humidity: { value: Math.floor(Math.random() * 60) + 30, unit: "%" },
+        wind_speed: { value: parseFloat((Math.random() * 9.5 + 0.5).toFixed(1)), unit: "m/s" },
+        wind_direction: { value: Math.floor(Math.random() * 360), unit: "°" },
+        solar_radiation: { value: Math.floor(Math.random() * 750) + 50, unit: "W/m²" },
+        rainfall: { value: parseFloat((Math.random() * 2).toFixed(1)), unit: "mm" },
+        temperature: { value: Math.floor(Math.random() * 20) + 15, unit: "°C" }
+      },
+      aqi: {
+        value: convertedAqi,
+        category: getAqiCategory(convertedAqi),
+        description: getAqiDescription(convertedAqi)
+      },
+      source: "Open Weather API"
+    };
+    
+    return mockData;
+  } catch (error) {
+    console.error("Error fetching data from Open Weather API:", error);
+    // Fallback to mock data
+    const mockData = generateMockAirQualityData(coordinates);
+    mockData.source = "Open Weather API (Fallback)";
+    return mockData;
+  }
+};
+
+// Convert OpenWeather AQI (1-5 scale) to standard AQI (0-500 scale)
+function convertOpenWeatherAqiToStandard(openWeatherAqi: number): number {
+  // OpenWeather AQI: 1=Good, 2=Fair, 3=Moderate, 4=Poor, 5=Very Poor
+  // Map to AQI ranges: 0-50, 51-100, 101-150, 151-300, 301-500
+  switch (openWeatherAqi) {
+    case 1: return 25;  // Good (middle of 0-50)
+    case 2: return 75;  // Fair (middle of 51-100)
+    case 3: return 125; // Moderate (middle of 101-150)
+    case 4: return 225; // Poor (middle of 151-300)
+    case 5: return 400; // Very Poor (middle of 301-500)
+    default: return 150; // Default to moderate
+  }
+}
+
+// Fetch air quality data based on region selection
+export const fetchAirQualityByRegion = async (
+  country: string,
+  state: string,
+  district: string
+): Promise<AirQualityData> => {
+  console.log(`Fetching air quality data for region: ${country}, ${state}, ${district}`);
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  let locationName = district;
+  if (!district && state) {
+    locationName = state;
+  } else if (!district && !state && country) {
+    locationName = country;
+  }
+  
+  // Generate consistent mock data for this region
+  const mockData = generateMockAirQualityDataForCity(locationName);
+  mockData.location.name = locationName;
+  
+  // Generate consistent coordinates for the region
+  const seed = locationName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const r = (seed % 1000) / 1000;
+  
+  mockData.location.coordinates = {
+    latitude: 17.5 + (r - 0.5) * 2,
+    longitude: 78.3 + (r - 0.5) * 2
+  };
+  
+  mockData.source = "Region Selection";
+  
+  return mockData;
+};
+
+// Export existing functions with updated comments
 export const fetchAirQualityData = async (
   coordinates: GeolocationCoordinates
 ): Promise<AirQualityData> => {
@@ -126,6 +238,7 @@ export const fetchAirQualityData = async (
     const mockData = generateMockAirQualityDataForCity(cityName);
     mockData.location.name = cityName;
     mockData.location.coordinates = coordinates;
+    mockData.source = "Local Data (Geo)";
     
     return mockData;
   } catch (error) {
@@ -342,4 +455,77 @@ export const getHistoricalDataForMetric = (metricKey: string, days = 7): { date:
   }
   
   return data;
+};
+
+// Fetch list of countries for dropdowns
+export const fetchCountries = async (): Promise<string[]> => {
+  // For demo purposes, return a static list
+  return [
+    "India", 
+    "United States", 
+    "Canada", 
+    "Australia", 
+    "United Kingdom", 
+    "Germany", 
+    "France", 
+    "Japan", 
+    "China"
+  ];
+};
+
+// Fetch list of states for a given country
+export const fetchStates = async (country: string): Promise<string[]> => {
+  // For demo purposes, return a static list based on country
+  switch (country) {
+    case "India":
+      return [
+        "Telangana",
+        "Andhra Pradesh",
+        "Karnataka",
+        "Tamil Nadu",
+        "Maharashtra",
+        "Delhi",
+        "Gujarat",
+        "West Bengal"
+      ];
+    case "United States":
+      return [
+        "California",
+        "New York",
+        "Texas",
+        "Florida",
+        "Washington"
+      ];
+    default:
+      return ["State 1", "State 2", "State 3"];
+  }
+};
+
+// Fetch list of districts for a given state
+export const fetchDistricts = async (country: string, state: string): Promise<string[]> => {
+  // For demo purposes, return a static list based on state
+  if (country === "India") {
+    switch (state) {
+      case "Telangana":
+        return [
+          "Hyderabad",
+          "Bachupally",
+          "Kompally",
+          "Gachibowli",
+          "HITEC City",
+          "Warangal",
+          "Karimnagar"
+        ];
+      case "Karnataka":
+        return [
+          "Bangalore",
+          "Mysore",
+          "Mangalore"
+        ];
+      default:
+        return ["District 1", "District 2", "District 3"];
+    }
+  }
+  
+  return ["District A", "District B", "District C"];
 };

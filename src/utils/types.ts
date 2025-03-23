@@ -1,3 +1,4 @@
+
 export interface AirQualityData {
   location: {
     name: string;
@@ -42,6 +43,8 @@ export interface MetricValue {
 }
 
 export type AqiCategory = 'good' | 'moderate' | 'unhealthy' | 'very-unhealthy' | 'hazardous';
+
+export type DataSource = "local" | "google" | "region" | "openweather";
 
 export interface MetricInfo {
   key: keyof AirQualityMetrics;
