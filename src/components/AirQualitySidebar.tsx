@@ -1,5 +1,6 @@
 
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Sidebar, 
   SidebarContent, 
@@ -18,11 +19,14 @@ import {
   BarChart2, 
   Gauge, 
   Thermometer, 
-  Info
+  Info,
+  Database,
+  Activity,
+  LogOut
 } from "lucide-react";
 
 // Menu items
-const menuItems = [
+const dashboardItems = [
   {
     title: "Home",
     icon: Home,
@@ -50,12 +54,23 @@ const menuItems = [
   }
 ];
 
-const AirQualitySidebar: React.FC = () => {
+interface AirQualitySidebarProps {
+  onLogout?: () => void;
+  isAdmin?: boolean;
+}
+
+const AirQualitySidebar: React.FC<AirQualitySidebarProps> = ({ onLogout, isAdmin = false }) => {
+  const navigate = useNavigate();
+  
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
   };
 
   return (
@@ -70,17 +85,59 @@ const AirQualitySidebar: React.FC = () => {
           <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
+              {isAdmin ? (
+                <SidebarMenuItem>
                   <SidebarMenuButton 
-                    onClick={() => scrollToSection(item.id)}
-                    tooltip={item.title}
+                    onClick={() => handleNavigation("/")}
+                    tooltip="Main Dashboard"
                   >
-                    <item.icon />
-                    <span>{item.title}</span>
+                    <Home />
+                    <span>Main Dashboard</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              ) : (
+                dashboardItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton 
+                      onClick={() => scrollToSection(item.id)}
+                      tooltip={item.title}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        <SidebarGroup>
+          <SidebarGroupLabel>Advanced</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => handleNavigation("/admin")}
+                  tooltip="AQI Analysis"
+                  isActive={isAdmin}
+                >
+                  <Activity />
+                  <span>AQI Analysis</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              {onLogout && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={onLogout}
+                    tooltip="Logout"
+                  >
+                    <LogOut />
+                    <span>Logout</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
