@@ -117,26 +117,26 @@ const SupabaseSetupGuide: React.FC = () => {
               <p className="text-white">npm install @supabase/supabase-js</p>
               <br />
               <p className="text-blue-200">// Create a Supabase client</p>
-              <p className="text-white">import {'{ createClient }'} from '@supabase/supabase-js'</p>
+              <p className="text-white">import {"{ createClient }"} from '@supabase/supabase-js'</p>
               <br />
               <p className="text-white">const supabaseUrl = process.env.REACT_APP_SUPABASE_URL</p>
               <p className="text-white">const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY</p>
               <p className="text-white">const supabase = createClient(supabaseUrl, supabaseKey)</p>
               <br />
               <p className="text-blue-200">// Fetch data example</p>
-              <p className="text-white">const fetchAirQualityData = async () => {'{'}</p>
-              <p className="pl-4 text-white">const {'{ data, error }'} = await supabase</p>
+              <p className="text-white">const fetchAirQualityData = async () => {"{"}</p>
+              <p className="pl-4 text-white">const {"{ data, error }"} = await supabase</p>
               <p className="pl-8 text-white">.from('air_quality_data')</p>
               <p className="pl-8 text-white">.select('*')</p>
               <p className="pl-8 text-white">.limit(100)</p>
               <br />
-              <p className="pl-4 text-white">if (error) {'{'}</p>
+              <p className="pl-4 text-white">if (error) {"{"}</p>
               <p className="pl-8 text-white">console.error('Error fetching data:', error)</p>
               <p className="pl-8 text-white">return []</p>
-              <p className="pl-4 text-white">{'}'}</p>
+              <p className="pl-4 text-white">{"}"}</p>
               <br />
               <p className="pl-4 text-white">return data</p>
-              <p className="text-white">{'}'}</p>
+              <p className="text-white">{"}"}</p>
             </div>
           </AccordionContent>
         </AccordionItem>
