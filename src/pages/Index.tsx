@@ -29,7 +29,7 @@ const Index: React.FC = () => {
         
         {isMobile && (
           <Button 
-            className="fixed bottom-4 right-4 z-50 rounded-full w-12 h-12 shadow-lg" 
+            className="sidebar-toggle-button" 
             onClick={toggleSidebar}
             variant="default"
           >
