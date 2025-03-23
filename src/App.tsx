@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
+import AQIAnalysis from "./pages/AQIAnalysis";
+import MLConfig from "./pages/MLConfig";
 import NotFound from "./pages/NotFound";
 
 // Create a new QueryClient instance
@@ -21,6 +23,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/analysis" element={<AQIAnalysis />} />
+          <Route path="/ml-config" element={<MLConfig />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
