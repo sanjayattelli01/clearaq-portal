@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
@@ -82,7 +81,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
           data.location.name = location;
           break;
         case "region":
-          // For city search with region data source, we'll just use the city name
           data = await fetchAirQualityByRegion("India", "", location);
           break;
         default:
@@ -126,7 +124,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
           data = await fetchAirQualityFromOpenWeather(coords);
           break;
         case "region":
-          // For geolocation with region data source, we'll use the detected city
           data = await fetchAirQualityByRegion("India", "", cityName);
           break;
         default:
@@ -167,7 +164,6 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
       setLastSearchMethod("region");
       setSelectedRegion({ country, state, district });
       
-      // Update the city search field with the region name
       let locationName = district || state || country;
       setCitySearch(locationName);
       
@@ -274,114 +270,91 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
         />
         
         <section id="home" className="py-6 px-4 md:px-6">
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="max-w-6xl mx-auto text-center">
             <h1 className="text-2xl md:text-3xl font-bold mb-3 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
               Air Quality Monitoring Dashboard
             </h1>
-            <p className="text-base md:text-lg text-muted-foreground mb-4">
+            <p className="text-base md:text-lg text-blue-300 mb-6">
               Get real-time air quality data for any location or use your current position
             </p>
 
-            <div className="flex flex-col gap-4">
-              <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-2">
-                <div className="flex gap-2">
-                  <Input 
-                    value={citySearch}
-                    onChange={(e) => setCitySearch(e.target.value)}
-                    placeholder="Enter city name..."
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={isLoading || !citySearch.trim()}>
-                    <Search className="mr-2 h-4 w-4" />
-                    Search
-                  </Button>
-                </div>
-              </form>
+            <form onSubmit={handleCitySearch} className="max-w-md mx-auto mb-6">
+              <div className="flex gap-2">
+                <Input 
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
+                  placeholder="Enter city name..."
+                  className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/50"
+                />
+                <Button type="submit" disabled={isLoading || !citySearch.trim()} className="bg-blue-500 hover:bg-blue-600">
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </Button>
+              </div>
+            </form>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-md mx-auto">
-                <LocationSelector 
-                  onLocationSelected={loadDataForLocation}
-                  onDetectLocation={loadDataForCurrentLocation}
-                  isLoading={isLoading}
-                  currentLocation={airQualityData?.location.name}
-                />
-                
-                <RegionSelector 
-                  onRegionSelected={loadDataForRegion}
-                  isLoading={isLoading}
-                />
-              </div>
+            <div className="two-column-layout mb-8">
+              <LocationSelector 
+                onLocationSelected={loadDataForLocation}
+                onDetectLocation={loadDataForCurrentLocation}
+                isLoading={isLoading}
+                currentLocation={airQualityData?.location.name}
+              />
+              
+              <RegionSelector 
+                onRegionSelected={loadDataForRegion}
+                isLoading={isLoading}
+              />
+            </div>
 
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex flex-wrap justify-center gap-3">
-                  <Button 
-                    onClick={() => scrollToSection("inputs")}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-xs md:text-sm"
-                  >
-                    Enter Air Quality Data
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={loadDataForCurrentLocation}
-                    disabled={isLoading}
-                    className="text-xs md:text-sm"
-                  >
-                    <MapPin className="mr-2 h-4 w-4" />
-                    {isMobile ? "Current Location" : "Use My Location"}
-                  </Button>
-                </div>
-                
-                <div className="w-full max-w-md">
-                  <div className="flex items-center justify-center mb-2">
-                    <Info className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Select Data Source:</span>
-                  </div>
-                  <ToggleGroup 
-                    type="single" 
-                    value={dataSource} 
-                    onValueChange={(value) => value && setDataSource(value as DataSource)} 
-                    className="justify-center"
-                  >
-                    <ToggleGroupItem value="local" className="flex gap-1 text-xs">
-                      <Wind className="h-3 w-3" />
-                      <span className="hidden md:inline">Local Data</span>
-                      <span className="md:hidden">Local</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="google" className="flex gap-1 text-xs">
-                      <Globe className="h-3 w-3" />
-                      <span className="hidden md:inline">Google API</span>
-                      <span className="md:hidden">Google</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="region" className="flex gap-1 text-xs">
-                      <MapPin className="h-3 w-3" />
-                      <span className="hidden md:inline">Region Data</span>
-                      <span className="md:hidden">Region</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="openweather" className="flex gap-1 text-xs">
-                      <CloudRain className="h-3 w-3" />
-                      <span className="hidden md:inline">Open Weather</span>
-                      <span className="md:hidden">Weather</span>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
+            <div className="mt-8">
+              <div className="flex items-center justify-center mb-2">
+                <Info className="h-4 w-4 mr-2 text-blue-300" />
+                <span className="text-sm text-blue-300">Select Data Source:</span>
               </div>
+              <ToggleGroup 
+                type="single" 
+                value={dataSource} 
+                onValueChange={(value) => value && setDataSource(value as DataSource)} 
+                className="justify-center"
+              >
+                <ToggleGroupItem value="local" className="flex gap-1 text-xs data-[state=on]:bg-blue-600">
+                  <Wind className="h-3 w-3" />
+                  <span className="hidden md:inline">Local Data</span>
+                  <span className="md:hidden">Local</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="google" className="flex gap-1 text-xs data-[state=on]:bg-blue-600">
+                  <Globe className="h-3 w-3" />
+                  <span className="hidden md:inline">Google API</span>
+                  <span className="md:hidden">Google</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="region" className="flex gap-1 text-xs data-[state=on]:bg-blue-600">
+                  <MapPin className="h-3 w-3" />
+                  <span className="hidden md:inline">Region Data</span>
+                  <span className="md:hidden">Region</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="openweather" className="flex gap-1 text-xs data-[state=on]:bg-blue-600">
+                  <CloudRain className="h-3 w-3" />
+                  <span className="hidden md:inline">Open Weather</span>
+                  <span className="md:hidden">Weather</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </div>
         </section>
         
-        <section id="inputs" className="py-6 px-4 md:px-6 bg-card/20 backdrop-blur-sm">
+        <section id="inputs" className="py-6 px-4 md:px-6 bg-white/5 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center mb-4">
-              <Wind className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-xl md:text-2xl font-semibold">Air Quality Inputs</h2>
+              <Wind className="h-5 w-5 mr-2 text-blue-400" />
+              <h2 className="text-xl md:text-2xl font-semibold text-white">Air Quality Inputs</h2>
             </div>
             
             <div className="glass-card p-4 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {METRICS_INFO.map((metric) => (
                   <div key={metric.key} className="flex flex-col space-y-2">
-                    <Label htmlFor={metric.key} className="flex items-center gap-2 text-xs md:text-sm">
+                    <Label htmlFor={metric.key} className="flex items-center gap-2 text-xs md:text-sm text-white">
                       {metric.label}
                     </Label>
                     <Input
@@ -389,14 +362,14 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
                       placeholder={`Enter ${metric.label}`}
                       value={formData[metric.key] || ''}
                       onChange={(e) => handleInputChange(metric.key, e.target.value)}
-                      className="backdrop-blur-sm bg-secondary/40 border-none text-xs md:text-sm"
+                      className="backdrop-blur-sm bg-white/10 border-white/10 text-white text-xs md:text-sm"
                     />
                   </div>
                 ))}
               </div>
               
               <div className="flex justify-center mt-6 gap-3">
-                <Button onClick={handleSubmitData} disabled={isLoading} size={isMobile ? "sm" : "default"} className="text-xs md:text-sm">
+                <Button onClick={handleSubmitData} disabled={isLoading} size={isMobile ? "sm" : "default"} className="text-xs md:text-sm bg-blue-500 hover:bg-blue-600">
                   {isLoading ? (
                     <>
                       <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
@@ -411,7 +384,7 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
                   onClick={loadDataForCurrentLocation}
                   disabled={isLoading}
                   size={isMobile ? "sm" : "default"}
-                  className="text-xs md:text-sm"
+                  className="text-xs md:text-sm border-white/20 text-white hover:bg-white/10"
                 >
                   {getDataSourceIcon()}
                   <span className="ml-2">
@@ -429,10 +402,10 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
         <section id="analysis" className="py-6 px-4 md:px-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center mb-4">
-              <BarChart className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-xl md:text-2xl font-semibold">Analysis</h2>
+              <BarChart className="h-5 w-5 mr-2 text-blue-400" />
+              <h2 className="text-xl md:text-2xl font-semibold text-white">Analysis</h2>
               {airQualityData?.source && (
-                <span className="ml-4 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                <span className="ml-4 text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full">
                   Source: {airQualityData.source}
                 </span>
               )}
@@ -460,14 +433,14 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
                 </>
               ) : (
                 <div className="col-span-full glass-card p-6 text-center">
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-blue-300 mb-4">
                     {isLoading ? "Loading data..." : "Enter values or use your location to view air quality data"}
                   </p>
                   {!isLoading && !error && (
                     <Button 
                       onClick={loadDataForCurrentLocation} 
                       variant="default" 
-                      className="bg-primary"
+                      className="bg-blue-500 hover:bg-blue-600"
                     >
                       {getDataSourceIcon()}
                       <span className="ml-2">
@@ -481,7 +454,7 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
                       <Button 
                         onClick={loadDataForCurrentLocation} 
                         variant="outline" 
-                        className="mt-4"
+                        className="mt-4 border-white/20 text-white hover:bg-white/10"
                       >
                         Try Again
                       </Button>
@@ -493,11 +466,11 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
           </div>
         </section>
         
-        <section id="quality-index" className="py-6 px-4 md:px-6 bg-card/20 backdrop-blur-sm">
+        <section id="quality-index" className="py-6 px-4 md:px-6 bg-white/5 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center mb-4">
-              <Gauge className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-xl md:text-2xl font-semibold">Quality Index</h2>
+              <Gauge className="h-5 w-5 mr-2 text-blue-400" />
+              <h2 className="text-xl md:text-2xl font-semibold text-white">Quality Index</h2>
             </div>
             
             {airQualityData ? (
@@ -512,7 +485,7 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
               </div>
             ) : (
               <div className="glass-card p-6 text-center">
-                <p className="text-muted-foreground">
+                <p className="text-blue-300">
                   No data available. Please enter values or use your location.
                 </p>
               </div>
@@ -521,19 +494,19 @@ const AirQualityDashboard: React.FC<AirQualityDashboardProps> = ({ onToggleSideb
         </section>
         
         <section id="final-air-quality" className="py-6 px-4 md:px-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="final-quality-container">
             <div className="flex items-center mb-4">
-              <ThermometerSun className="h-5 w-5 mr-2 text-primary" />
-              <h2 className="text-xl md:text-2xl font-semibold">Final Air Quality</h2>
+              <ThermometerSun className="h-5 w-5 mr-2 text-blue-400" />
+              <h2 className="text-xl md:text-2xl font-semibold text-white">Final Air Quality</h2>
             </div>
             
             {airQualityData ? (
-              <div className="w-full px-0 md:px-0 lg:px-0">
+              <div className="w-full">
                 <FinalAirQuality airQualityData={airQualityData} />
               </div>
             ) : (
               <div className="glass-card p-6 text-center">
-                <p className="text-muted-foreground">
+                <p className="text-blue-300">
                   No data available. Please enter values or use your location.
                 </p>
               </div>

@@ -21,7 +21,7 @@ const Header: React.FC<HeaderProps> = ({
   const isMobile = useIsMobile();
   
   return (
-    <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-30 w-full border-b border-white/10 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="flex items-center gap-2">
           {isMobile && onToggleSidebar && (
@@ -30,11 +30,11 @@ const Header: React.FC<HeaderProps> = ({
             </Button>
           )}
           <div className="flex flex-col">
-            <h2 className="text-sm md:text-base font-semibold">
+            <h2 className="text-sm md:text-base font-semibold text-white">
               Air Quality Dashboard
             </h2>
             {airQualityData?.location?.name && (
-              <div className="flex items-center text-xs text-muted-foreground">
+              <div className="flex items-center text-xs text-blue-300">
                 <MapPin className="h-3 w-3 mr-1" />
                 {airQualityData.location.name}
               </div>

@@ -18,12 +18,12 @@ const Index: React.FC = () => {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full relative">
-        <div className={`${isMobile ? 'fixed inset-y-0 z-40 transform transition-transform duration-300 ease-in-out' : 'sticky top-0 h-screen overflow-y-auto'} 
+        <div className={`${isMobile ? 'fixed inset-y-0 z-40 transform transition-transform duration-300 ease-in-out' : 'fixed top-0 h-screen overflow-y-auto'} 
                          ${isMobile && !showSidebar ? '-translate-x-full' : 'translate-x-0'}`}>
           <AirQualitySidebar />
         </div>
         
-        <main className="flex-1 overflow-x-hidden">
+        <main className="flex-1 overflow-x-hidden ml-0 md:ml-64">
           <AirQualityDashboard onToggleSidebar={toggleSidebar} />
         </main>
         

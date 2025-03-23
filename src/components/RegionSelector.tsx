@@ -104,10 +104,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   };
   
   return (
-    <Card className="glass-card animate-fade-in w-full">
+    <Card className="glass-card animate-fade-in w-full border-white/10">
       <CardHeader className="p-3 pb-0">
-        <CardTitle className="text-base font-medium flex items-center">
-          <Globe className="h-4 w-4 mr-2" />
+        <CardTitle className="text-base font-medium flex items-center text-white">
+          <Globe className="h-4 w-4 mr-2 text-blue-400" />
           Region Selection
         </CardTitle>
       </CardHeader>
@@ -120,10 +120,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
                 onValueChange={setSelectedCountry}
                 disabled={isLoading || loading}
               >
-                <SelectTrigger className="w-full backdrop-blur-sm bg-secondary/40 border-none h-9 text-xs">
+                <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">
                   <SelectValue placeholder="Country" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-white/10">
                   {countries.map(country => (
                     <SelectItem key={country} value={country} className="text-xs">
                       {country}
@@ -139,10 +139,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
                 onValueChange={setSelectedState}
                 disabled={isLoading || loading || !selectedCountry}
               >
-                <SelectTrigger className="w-full backdrop-blur-sm bg-secondary/40 border-none h-9 text-xs">
+                <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">
                   <SelectValue placeholder="State" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-white/10">
                   {states.map(state => (
                     <SelectItem key={state} value={state} className="text-xs">
                       {state}
@@ -158,10 +158,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
                 onValueChange={setSelectedDistrict}
                 disabled={isLoading || loading || !selectedState}
               >
-                <SelectTrigger className="w-full backdrop-blur-sm bg-secondary/40 border-none h-9 text-xs">
+                <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">
                   <SelectValue placeholder="District" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-white/10">
                   {districts.map(district => (
                     <SelectItem key={district} value={district} className="text-xs">
                       {district}
@@ -175,7 +175,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
           <Button
             type="button"
             variant="default"
-            className="w-full backdrop-blur-sm bg-primary text-xs"
+            className="w-full backdrop-blur-sm bg-blue-500 hover:bg-blue-600 text-xs"
             onClick={handleSearch}
             disabled={isLoading || loading || !selectedCountry}
           >

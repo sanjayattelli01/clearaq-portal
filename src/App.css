@@ -8,10 +8,13 @@
 
 /* Fixed sidebar styles */
 .sidebar-fixed {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
   overflow-y: auto;
+  width: 16rem; /* 256px */
+  z-index: 30;
 }
 
 /* Sidebar toggle button */
@@ -61,28 +64,28 @@
 
 .animate-gradient-shift {
   background: linear-gradient(120deg, 
-    rgba(249, 250, 251, 1) 0%, 
-    rgba(243, 244, 246, 1) 25%, 
-    rgba(249, 250, 251, 1) 50%, 
-    rgba(243, 244, 246, 1) 75%, 
-    rgba(249, 250, 251, 1) 100%);
+    rgba(11, 15, 39, 1) 0%, 
+    rgba(18, 25, 51, 1) 25%, 
+    rgba(11, 15, 39, 1) 50%, 
+    rgba(18, 25, 51, 1) 75%, 
+    rgba(11, 15, 39, 1) 100%);
   background-size: 200% 200%;
   animation: gradient-shift 15s ease infinite;
 }
 
 /* Glass card effect */
 .glass-card {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
 }
 
 .glass-card:hover {
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Animations */
@@ -111,5 +114,32 @@
   }
   50% {
     opacity: 0.8;
+  }
+}
+
+/* Ensure consistent spacing for the Final Air Quality section */
+.final-quality-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .final-quality-container {
+    padding: 0 2rem;
+  }
+}
+
+/* Override for two column layout */
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .two-column-layout {
+    grid-template-columns: 1fr 1fr;
   }
 }

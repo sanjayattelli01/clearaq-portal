@@ -50,10 +50,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   };
 
   return (
-    <Card className="glass-card animate-fade-in">
+    <Card className="glass-card animate-fade-in border-white/10">
       <CardHeader className="p-3 pb-0">
-        <CardTitle className="text-base font-medium flex items-center">
-          <MapPin className="h-4 w-4 mr-2" />
+        <CardTitle className="text-base font-medium flex items-center text-white">
+          <MapPin className="h-4 w-4 mr-2 text-blue-400" />
           Location
         </CardTitle>
       </CardHeader>
@@ -65,10 +65,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
               placeholder="Enter city or location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="backdrop-blur-sm bg-secondary/40 border-none"
+              className="backdrop-blur-sm bg-white/10 border-white/10 text-white placeholder:text-white/50"
               disabled={isLoading}
             />
-            <Button type="submit" size="icon" disabled={isLoading}>
+            <Button type="submit" size="icon" disabled={isLoading} className="bg-blue-500 hover:bg-blue-600">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
@@ -76,7 +76,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
           <Button
             type="button"
             variant="outline"
-            className="w-full backdrop-blur-sm bg-secondary/20 text-xs md:text-sm"
+            className="w-full backdrop-blur-sm bg-white/5 border-white/10 text-white hover:bg-white/10 text-xs md:text-sm"
             onClick={handleDetectLocation}
             disabled={isLoading}
           >
@@ -94,7 +94,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
           </Button>
           
           {navigator.geolocation === undefined && (
-            <div className="text-xs text-orange-500 flex items-center mt-1">
+            <div className="text-xs text-orange-400 flex items-center mt-1">
               <AlertCircle className="h-3 w-3 mr-1" />
               Geolocation unavailable
             </div>
