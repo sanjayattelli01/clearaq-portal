@@ -2,7 +2,7 @@
 import React from "react";
 import { 
   Database, AlertTriangle, CheckCircle, ExternalLink, 
-  FileJson, Table, Lock, Braces
+  FileJson, Table, Lock, Braces, Upload, FileUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,26 +117,95 @@ const SupabaseSetupGuide: React.FC = () => {
               <p className="text-white">npm install @supabase/supabase-js</p>
               <br />
               <p className="text-blue-200">// Create a Supabase client</p>
-              <p className="text-white">import {"{ createClient }"} from '@supabase/supabase-js'</p>
+              <p className="text-white">import {`{ createClient }`} from '@supabase/supabase-js'</p>
               <br />
               <p className="text-white">const supabaseUrl = process.env.REACT_APP_SUPABASE_URL</p>
               <p className="text-white">const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY</p>
               <p className="text-white">const supabase = createClient(supabaseUrl, supabaseKey)</p>
               <br />
               <p className="text-blue-200">// Fetch data example</p>
-              <p className="text-white">const fetchAirQualityData = async () => {"{"}</p>
-              <p className="pl-4 text-white">const {"{ data, error }"} = await supabase</p>
+              <p className="text-white">const fetchAirQualityData = async () => {`{`}</p>
+              <p className="pl-4 text-white">const {`{ data, error }`} = await supabase</p>
               <p className="pl-8 text-white">.from('air_quality_data')</p>
               <p className="pl-8 text-white">.select('*')</p>
               <p className="pl-8 text-white">.limit(100)</p>
               <br />
-              <p className="pl-4 text-white">if (error) {"{"}</p>
+              <p className="pl-4 text-white">if (error) {`{`}</p>
               <p className="pl-8 text-white">console.error('Error fetching data:', error)</p>
               <p className="pl-8 text-white">return []</p>
-              <p className="pl-4 text-white">{"}"}</p>
+              <p className="pl-4 text-white">{`}`}</p>
               <br />
               <p className="pl-4 text-white">return data</p>
-              <p className="text-white">{"}"}</p>
+              <p className="text-white">{`}`}</p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="data-upload" className="border-white/10">
+          <AccordionTrigger className="text-white hover:text-white hover:no-underline py-4">
+            <div className="flex items-center gap-2">
+              <Upload className="h-4 w-4 text-blue-400" />
+              <span>Data Upload Guide</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="text-blue-300">
+            <div className="space-y-4">
+              <p className="text-sm">
+                To upload your air quality dataset (5000+ rows) to Supabase:
+              </p>
+              
+              <ol className="space-y-3 pl-6 list-decimal">
+                <li>
+                  <div className="flex flex-col">
+                    <span className="text-white font-medium">Create the table</span>
+                    <span className="text-sm">
+                      Go to your Supabase project dashboard, navigate to the Table Editor, and click "New Table".
+                      Use the schema provided above or create it via SQL Editor.
+                    </span>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex flex-col">
+                    <span className="text-white font-medium">Prepare your CSV file</span>
+                    <span className="text-sm">
+                      Ensure your CSV has headers matching the table column names. For large datasets,
+                      consider splitting into multiple files (1000 rows each).
+                    </span>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex flex-col">
+                    <span className="text-white font-medium">Upload via Supabase UI</span>
+                    <span className="text-sm">
+                      In Table Editor, select the table and click "Insert" → "Import Data" → 
+                      "CSV". Browse for your file and follow the upload prompts.
+                    </span>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex flex-col">
+                    <span className="text-white font-medium">Alternative: Programmatic Upload</span>
+                    <span className="text-sm">
+                      For very large datasets, use the Supabase JS client to upload data 
+                      programmatically in batches.
+                    </span>
+                    <div className="rounded bg-black/40 p-2 text-xs font-mono mt-2 overflow-auto">
+                      <p className="text-white">// Batch upload example</p>
+                      <p className="text-white">const batches = chunkArray(airQualityData, 1000);</p>
+                      <p className="text-white">for (const batch of batches) {`{`}</p>
+                      <p className="pl-2 text-white">const {`{ error }`} = await supabase</p>
+                      <p className="pl-4 text-white">.from('air_quality_data')</p>
+                      <p className="pl-4 text-white">.insert(batch);</p>
+                      <p className="text-white">{`}`}</p>
+                    </div>
+                  </div>
+                </li>
+              </ol>
+              
+              <div className="mt-4 flex items-center gap-2 text-yellow-300 text-sm">
+                <FileUp className="h-4 w-4" />
+                <span>For ML analysis purposes, ensure your dataset has sufficient variety in pollutant values and corresponding AQI categories.</span>
+              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
