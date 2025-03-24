@@ -1,219 +1,352 @@
 
 import React from "react";
-import { AlertCircle, ThumbsUp, ThumbsDown, BadgeInfo, Activity } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { METRICS_INFO } from "@/utils/types";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
+import { AlertCircle, CheckCircle, Database, GitCompare } from "lucide-react";
 
 interface AQIAnalysisResultProps {
   result: {
     aqiScore: number;
-    classification: { label: string; color: string };
-    similarities: Array<{ id: number; similarity: number; data: any }>;
-    bestMatch: { id: number; similarity: number; data: any };
-    worstMatch: { id: number; similarity: number; data: any };
+    classification: {
+      label: string;
+      color: string;
+    };
+    algorithm?: string;
+    algorithmDescription?: string;
+    similarities: Array<{
+      id: number;
+      similarity: number;
+      data: any;
+    }>;
+    bestMatch: {
+      id: number;
+      similarity: number;
+      data: any;
+    };
+    worstMatch: {
+      id: number;
+      similarity: number;
+      data: any;
+    };
     metrics: Record<string, number>;
   };
 }
 
 const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
-  const getAQIColor = (score: number): string => {
-    if (score <= 50) return "bg-green-500";
-    if (score <= 100) return "bg-yellow-500";
-    if (score <= 150) return "bg-orange-500";
-    if (score <= 200) return "bg-red-500";
-    if (score <= 300) return "bg-purple-500";
-    return "bg-rose-600";
+  // Prepare efficiency distribution data for pie chart
+  const prepareEfficiencyDistribution = () => {
+    const categories = ["Low", "Moderate", "High", "Very High"];
+    const counts: Record<string, number> = { "Low": 0, "Moderate": 0, "High": 0, "Very High": 0 };
+    
+    // Count occurrences of each category in similarities
+    result.similarities.forEach(item => {
+      if (item.data.efficiency_category && counts[item.data.efficiency_category] !== undefined) {
+        counts[item.data.efficiency_category]++;
+      }
+    });
+    
+    return categories.map(category => ({
+      name: category,
+      value: counts[category]
+    }));
+  };
+
+  // Prepare comparison data for bar chart
+  const prepareComparisonData = () => {
+    if (!result.bestMatch || !result.metrics) return [];
+    
+    const keyMetrics = ["pm25", "pm10", "no2", "o3"];
+    return keyMetrics.map(metric => ({
+      name: metric.toUpperCase(),
+      current: result.metrics[metric] || 0,
+      bestMatch: result.bestMatch.data[metric] || 0
+    }));
+  };
+
+  // Prepare similarity data for bar chart
+  const prepareSimilarityData = () => {
+    return result.similarities.slice(0, 5).map(item => ({
+      id: item.id,
+      similarity: Math.round(item.similarity * 100),
+      category: item.data.efficiency_category || "Unknown"
+    }));
+  };
+
+  const efficiencyDistribution = prepareEfficiencyDistribution();
+  const comparisonData = prepareComparisonData();
+  const similarityData = prepareSimilarityData();
+
+  // Colors for pie chart
+  const COLORS = ["#FF8042", "#FFBB28", "#00C49F", "#0088FE"];
+  
+  // Get color based on efficiency category
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "Low": return "#FF8042";
+      case "Moderate": return "#FFBB28";
+      case "High": return "#00C49F";
+      case "Very High": return "#0088FE";
+      default: return "#888888";
+    }
   };
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row gap-6">
-        <Card className="flex-1 p-6 glass-card border-white/10">
-          <div className="flex items-center gap-3 mb-4">
-            <Activity className="h-5 w-5 text-blue-400" />
-            <h3 className="text-xl font-semibold text-white">AQI Score Analysis</h3>
-          </div>
-          
-          <div className="flex flex-col items-center justify-center pt-4">
-            <div className="relative w-40 h-40 mb-6">
-              <div className="absolute inset-0 rounded-full bg-white/5 border-4 border-white/10 flex items-center justify-center">
-                <div className={`absolute inset-2 rounded-full ${getAQIColor(result.aqiScore)} opacity-20`}></div>
-                <span className="text-4xl font-bold text-white">{result.aqiScore}</span>
-              </div>
-            </div>
-            
-            <h4 className={`text-2xl font-bold ${result.classification.color} mb-2`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-lg">AQI Score</CardTitle>
+            <CardDescription>Analysis result</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-white">{result.aqiScore}</div>
+            <div className={`mt-1 font-medium ${result.classification.color}`}>
               {result.classification.label}
-            </h4>
-            
-            <p className="text-center text-blue-300 text-sm max-w-md">
-              The calculated Air Quality Index based on provided metrics and advanced analysis
-              with Random Forest algorithm.
-            </p>
-          </div>
+            </div>
+          </CardContent>
         </Card>
-        
-        <Card className="flex-1 p-6 glass-card border-white/10">
-          <div className="flex items-center gap-3 mb-4">
-            <BadgeInfo className="h-5 w-5 text-blue-400" />
-            <h3 className="text-xl font-semibold text-white">Key Findings</h3>
-          </div>
-          
-          <ul className="space-y-4">
-            <li className="flex items-start gap-3">
-              <div className="mt-0.5">
-                <ThumbsUp className="h-5 w-5 text-green-500" />
-              </div>
+
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-lg">Algorithm</CardTitle>
+            <CardDescription>ML method used</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-semibold text-white">
+              {result.algorithm === 'naive-bayes' && 'Naive Bayes'}
+              {result.algorithm === 'knn' && 'K-Nearest Neighbors'}
+              {result.algorithm === 'svm' && 'Support Vector Machine'}
+              {result.algorithm === 'random-forest' && 'Random Forest'}
+              {!result.algorithm && 'Standard Analysis'}
+            </div>
+            <div className="mt-1 text-sm text-blue-300">
+              {result.algorithmDescription || 'Multi-factor weighted analysis'}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-lg">Best Match</CardTitle>
+            <CardDescription>Highest similarity</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-white mb-1">Best Match (Sample #{result.bestMatch.id})</h4>
-                <p className="text-sm text-blue-300">
-                  {(result.bestMatch.similarity * 100).toFixed(2)}% similarity score
-                  {result.bestMatch.similarity > 0.7 ? 
-                    " - Strong correlation found!" : 
-                    result.bestMatch.similarity > 0.5 ? 
-                      " - Moderate correlation" : 
-                      " - Weak correlation"}
-                </p>
+                <div className="text-xl font-semibold text-white">
+                  {Math.round(result.bestMatch.similarity * 100)}%
+                </div>
+                <div className="mt-1 text-sm text-blue-300">
+                  Similarity score
+                </div>
               </div>
-            </li>
-            
-            <li className="flex items-start gap-3">
-              <div className="mt-0.5">
-                <AlertCircle className="h-5 w-5 text-orange-500" />
-              </div>
-              <div>
-                <h4 className="font-medium text-white mb-1">Primary Concerns</h4>
-                <p className="text-sm text-blue-300">
-                  {getPrimaryConcerns(result.metrics)}
-                </p>
-              </div>
-            </li>
-            
-            <li className="flex items-start gap-3">
-              <div className="mt-0.5">
-                <Activity className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <h4 className="font-medium text-white mb-1">Analysis Confidence</h4>
-                <p className="text-sm text-blue-300">
-                  {getConfidenceLevel(result.similarities)}
-                </p>
-              </div>
-            </li>
-          </ul>
+              <Badge 
+                className={`${getCategoryColor(result.bestMatch.data.efficiency_category)} bg-opacity-20 text-white`}
+              >
+                {result.bestMatch.data.efficiency_category || "Unknown"}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-lg">Efficiency</CardTitle>
+            <CardDescription>Based on best match</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-white">
+              {result.bestMatch.data.efficiency || "N/A"}
+            </div>
+            <div className="mt-1 text-sm text-blue-300">
+              Out of 100
+            </div>
+          </CardContent>
         </Card>
       </div>
-      
-      <Card className="p-6 glass-card border-white/10">
-        <div className="flex items-center gap-3 mb-4">
-          <ThumbsUp className="h-5 w-5 text-blue-400" />
-          <h3 className="text-xl font-semibold text-white">Similarity Analysis</h3>
-        </div>
-        
-        <div className="rounded-md border border-white/10 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-white/5">
-                <TableHead className="text-white">Sample #</TableHead>
-                <TableHead className="text-white">Similarity</TableHead>
-                {METRICS_INFO.slice(0, 5).map(metric => (
-                  <TableHead key={metric.key} className="text-white">
-                    {metric.label}
-                  </TableHead>
-                ))}
-                <TableHead className="text-white">...</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow className="bg-white/10 text-white font-medium">
-                <TableCell>Current</TableCell>
-                <TableCell>-</TableCell>
-                {METRICS_INFO.slice(0, 5).map(metric => (
-                  <TableCell key={metric.key}>
-                    {result.metrics[metric.key]?.toFixed(2) || 'N/A'}
-                  </TableCell>
-                ))}
-                <TableCell>...</TableCell>
-              </TableRow>
-              
-              {result.similarities.slice(0, 3).map((item) => (
-                <TableRow key={item.id} className="hover:bg-white/5">
-                  <TableCell className="font-medium">{item.id}</TableCell>
-                  <TableCell>{(item.similarity * 100).toFixed(2)}%</TableCell>
-                  {METRICS_INFO.slice(0, 5).map(metric => (
-                    <TableCell key={metric.key}>
-                      {item.data[metric.key]?.toFixed(2) || 'N/A'}
-                    </TableCell>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <GitCompare className="h-5 w-5" />
+              Key Metrics Comparison
+            </CardTitle>
+            <CardDescription>
+              Your data vs best match
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={comparisonData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="name" stroke="#888" />
+                  <YAxis stroke="#888" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="current" name="Your Data" fill="#8884d8" />
+                  <Bar dataKey="bestMatch" name="Best Match" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Efficiency Distribution
+            </CardTitle>
+            <CardDescription>
+              Across similar data points
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={efficiencyDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {efficiencyDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            Top 5 Similar Data Points
+          </CardTitle>
+          <CardDescription>
+            Similarity scores and categories
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={similarityData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                layout="vertical"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis type="number" domain={[0, 100]} stroke="#888" />
+                <YAxis dataKey="id" type="category" stroke="#888" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}
+                  itemStyle={{ color: '#fff' }}
+                  formatter={(value, name, props) => {
+                    if (name === 'similarity') {
+                      return [`${value}%`, 'Similarity'];
+                    }
+                    return [value, name];
+                  }}
+                />
+                <Bar 
+                  dataKey="similarity" 
+                  name="Similarity" 
+                  fill="#8884d8"
+                  background={{ fill: '#333' }}
+                >
+                  {similarityData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={getCategoryColor(entry.category)} 
+                    />
                   ))}
-                  <TableCell>...</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        
-        <div className="mt-4 text-sm text-blue-300/70 italic">
-          Note: Only showing top 3 most similar samples and select metrics for readability
-        </div>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            Analysis Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-blue-300 space-y-2">
+            <p>
+              This analysis was performed using the 
+              <span className="font-semibold mx-1">
+                {result.algorithm === 'naive-bayes' && 'Naive Bayes'}
+                {result.algorithm === 'knn' && 'K-Nearest Neighbors'}
+                {result.algorithm === 'svm' && 'Support Vector Machine'}
+                {result.algorithm === 'random-forest' && 'Random Forest'}
+                {!result.algorithm && 'Standard Analysis'}
+              </span> 
+              algorithm against the available database records.
+            </p>
+            <p>
+              The AQI score of <span className="font-semibold">{result.aqiScore}</span> indicates 
+              <span className={`font-semibold mx-1 ${result.classification.color}`}>
+                {result.classification.label}
+              </span> 
+              air quality conditions.
+            </p>
+            <p>
+              The data shows a predicted efficiency of <span className="font-semibold">{result.bestMatch.data.efficiency}</span>,
+              which falls into the <span className="font-semibold">{result.bestMatch.data.efficiency_category}</span> category.
+            </p>
+            <p>
+              For more accurate results, consider collecting additional data points or refining the algorithm parameters.
+            </p>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
-};
-
-// Utility functions for analysis
-const getPrimaryConcerns = (metrics: Record<string, number>): string => {
-  const concerns = [];
-  
-  // Check PM2.5
-  if (metrics.pm25 > 35) {
-    concerns.push("High PM2.5 levels");
-  }
-  
-  // Check PM10
-  if (metrics.pm10 > 150) {
-    concerns.push("Elevated PM10 concentration");
-  }
-  
-  // Check Ozone
-  if (metrics.o3 > 70) {
-    concerns.push("Unhealthy Ozone levels");
-  }
-  
-  // Check NO2
-  if (metrics.no2 > 100) {
-    concerns.push("High NO2 concentration");
-  }
-  
-  if (concerns.length === 0) {
-    return "No significant pollutant concerns detected";
-  }
-  
-  return concerns.join(", ");
-};
-
-const getConfidenceLevel = (
-  similarities: Array<{ id: number; similarity: number; data: any }>
-): string => {
-  const topSimilarities = similarities.slice(0, 3).map(s => s.similarity);
-  const avgSimilarity = topSimilarities.reduce((sum, val) => sum + val, 0) / topSimilarities.length;
-  
-  if (avgSimilarity > 0.8) {
-    return "Very High - Strong correlation with reference data";
-  } else if (avgSimilarity > 0.6) {
-    return "High - Good match with reference samples";
-  } else if (avgSimilarity > 0.4) {
-    return "Moderate - Some uncertainty in analysis";
-  } else {
-    return "Low - Analysis contains significant uncertainty";
-  }
 };
 
 export default AQIAnalysisResult;
