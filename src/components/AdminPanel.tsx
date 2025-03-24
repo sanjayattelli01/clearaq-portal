@@ -21,7 +21,10 @@ import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
   fetchAirQualityData, 
   fetchAirQualityDataByCity, 
-  getUserCurrentLocation
+  getUserCurrentLocation,
+  fetchAirQualityFromOpenWeather,
+  fetchAirQualityFromGoogleAPI,
+  fetchAirQualityByRegion
 } from "@/utils/api";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +37,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const ML_ALGORITHMS = [
   { id: "naive-bayes", name: "Naive Bayes" },
@@ -44,47 +46,19 @@ const ML_ALGORITHMS = [
 ];
 
 const API_SOURCES = [
-  { id: "openweather", name: "OpenWeather API" },
-  { id: "google", name: "Google Air Quality API" },
-  { id: "manual", name: "Manual Entry" }
-];
-
-const EFFICIENCY_CATEGORIES = [
-  { value: "Low", label: "Low (0-25)" },
-  { value: "Moderate", label: "Moderate (26-50)" },
-  { value: "High", label: "High (51-75)" },
-  { value: "Very High", label: "Very High (76-100)" }
+  { id: "local", name: "Local Data", icon: "local-data" },
+  { id: "google", name: "Google API", icon: "google" },
+  { id: "region", name: "Region Data", icon: "region" },
+  { id: "openweather", name: "Open Weather", icon: "weather" }
 ];
 
 const apiConfigSchema = z.object({
   apiSource: z.string().min(1, "API source is required"),
-  apiKey: z.string().min(1, "API key is required"),
   location: z.string().optional()
 });
 
 const analysisFormSchema = z.object({
   algorithm: z.string().min(1, "ML algorithm is required"),
-});
-
-const dataEntrySchema = z.object({
-  pm25: z.coerce.number().min(0),
-  pm10: z.coerce.number().min(0),
-  no: z.coerce.number().min(0),
-  no2: z.coerce.number().min(0),
-  nox: z.coerce.number().min(0),
-  nh3: z.coerce.number().min(0),
-  so2: z.coerce.number().min(0),
-  co: z.coerce.number().min(0),
-  o3: z.coerce.number().min(0),
-  benzene: z.coerce.number().min(0),
-  humidity: z.coerce.number().min(0, "Humidity must be at least 0"),
-  wind_speed: z.coerce.number().min(0),
-  wind_direction: z.coerce.number().min(0).max(360, "Direction must be between 0-360"),
-  solar_radiation: z.coerce.number().min(0),
-  rainfall: z.coerce.number(),
-  air_temperature: z.coerce.number(),
-  efficiency: z.coerce.number().min(0).max(100, "Efficiency must be between 0-100"),
-  efficiency_category: z.enum(["Low", "Moderate", "High", "Very High"])
 });
 
 interface AdminPanelProps {
@@ -97,16 +71,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [citySearch, setCitySearch] = useState<string>("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("data-entry");
+  const [activeTab, setActiveTab] = useState<string>("api-integration");
   const [analysisPerformed, setAnalysisPerformed] = useState<boolean>(false);
   const [apiData, setApiData] = useState<any[]>([]);
-  const [algorithm, setAlgorithm] = useState<string>("random-forest");
+  const [selectedApiSource, setSelectedApiSource] = useState<string>("local");
   
   const apiConfigForm = useForm<z.infer<typeof apiConfigSchema>>({
     resolver: zodResolver(apiConfigSchema),
     defaultValues: {
-      apiSource: "openweather",
-      apiKey: "",
+      apiSource: "local",
       location: ""
     }
   });
@@ -115,30 +88,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     resolver: zodResolver(analysisFormSchema),
     defaultValues: {
       algorithm: "random-forest"
-    }
-  });
-  
-  const dataEntryForm = useForm<z.infer<typeof dataEntrySchema>>({
-    resolver: zodResolver(dataEntrySchema),
-    defaultValues: {
-      pm25: 0,
-      pm10: 0,
-      no: 0,
-      no2: 0,
-      nox: 0,
-      nh3: 0,
-      so2: 0,
-      co: 0,
-      o3: 0,
-      benzene: 0,
-      humidity: 0,
-      wind_speed: 0,
-      wind_direction: 0,
-      solar_radiation: 0,
-      rainfall: 0,
-      air_temperature: 0,
-      efficiency: 50,
-      efficiency_category: "Moderate"
     }
   });
 
@@ -163,7 +112,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         setApiData(data);
         toast.success(`Loaded ${data.length} records from database`);
       } else {
-        toast.info("No data found in database. Please add some data.");
+        toast.info("No data found in database");
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -225,73 +174,97 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     }
   };
 
-  const handleInputChange = (key: string, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const onDataEntrySubmit = async (values: z.infer<typeof dataEntrySchema>) => {
+  const handleApiSourceSelect = async (source: string) => {
+    setSelectedApiSource(source);
     setIsLoading(true);
     
     try {
-      // Fix: Make sure we're providing all required fields with non-null values
-      const { data, error } = await supabase
+      let data;
+      switch (source) {
+        case 'local':
+          const coords = await getUserCurrentLocation();
+          data = await fetchAirQualityData(coords);
+          break;
+        case 'google':
+          const googleCoords = await getUserCurrentLocation();
+          data = await fetchAirQualityFromGoogleAPI(googleCoords);
+          break;
+        case 'region':
+          data = await fetchAirQualityByRegion('India', 'Telangana', 'Hyderabad');
+          break;
+        case 'openweather':
+          const openWeatherCoords = await getUserCurrentLocation();
+          data = await fetchAirQualityFromOpenWeather(openWeatherCoords);
+          break;
+        default:
+          throw new Error("Invalid data source");
+      }
+      
+      setAirQualityData(data);
+      
+      const initialFormData: Record<string, string> = {};
+      Object.keys(data.metrics).forEach(key => {
+        initialFormData[key] = data.metrics[key].value.toString();
+      });
+      
+      setFormData(initialFormData);
+      
+      toast.success(`Loaded air quality data from ${source}`);
+      
+      // Save data to Supabase
+      await saveAirQualityData(data, source);
+      
+    } catch (err) {
+      console.error(`Error fetching data from ${source}:`, err);
+      toast.error(`Failed to load air quality data from ${source}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveAirQualityData = async (data: AirQualityData, source: string) => {
+    try {
+      const metrics = data.metrics;
+      
+      const { error } = await supabase
         .from('air_quality_data')
         .insert({
-          pm25: values.pm25,
-          pm10: values.pm10,
-          no: values.no,
-          no2: values.no2,
-          nox: values.nox,
-          nh3: values.nh3,
-          so2: values.so2,
-          co: values.co,
-          o3: values.o3,
-          benzene: values.benzene,
-          humidity: values.humidity,
-          wind_speed: values.wind_speed,
-          wind_direction: values.wind_direction,
-          solar_radiation: values.solar_radiation,
-          rainfall: values.rainfall,
-          air_temperature: values.air_temperature,
-          efficiency: values.efficiency,
-          efficiency_category: values.efficiency_category,
-          data_source: 'manual'
-        })
-        .select();
+          pm25: metrics.pm25.value,
+          pm10: metrics.pm10.value,
+          no: metrics.no.value,
+          no2: metrics.no2.value,
+          nox: metrics.nox.value,
+          nh3: metrics.nh3.value,
+          so2: metrics.so2.value,
+          co: metrics.co.value,
+          o3: metrics.o3.value,
+          benzene: metrics.benzene.value,
+          humidity: metrics.humidity.value,
+          wind_speed: metrics.wind_speed.value,
+          wind_direction: metrics.wind_direction.value,
+          solar_radiation: metrics.solar_radiation.value,
+          rainfall: metrics.rainfall.value,
+          air_temperature: metrics.temperature.value,
+          efficiency: Math.floor(Math.random() * 100), // Random efficiency value
+          efficiency_category: getEfficiencyCategory(Math.floor(Math.random() * 100)),
+          data_source: source
+        });
       
       if (error) throw error;
       
-      toast.success("Data saved successfully");
+      toast.success("Data saved to database");
       fetchDataFromSupabase();
     } catch (err) {
-      console.error("Error saving data:", err);
-      toast.error("Failed to save data");
-    } finally {
-      setIsLoading(false);
+      console.error("Error saving data to database:", err);
+      toast.error("Failed to save data to database");
     }
   };
 
-  const onApiConfigSubmit = async (values: z.infer<typeof apiConfigSchema>) => {
-    setIsLoading(true);
-    
-    try {
-      toast.info(`Fetching data from ${values.apiSource}...`);
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      if (values.apiSource === "openweather") {
-        toast.success("Successfully fetched data from OpenWeather API");
-      } else if (values.apiSource === "google") {
-        toast.success("Successfully fetched data from Google Air Quality API");
-      }
-      
-      fetchDataFromSupabase();
-    } catch (err) {
-      console.error("Error fetching API data:", err);
-      toast.error(`Failed to fetch data from ${values.apiSource}`);
-    } finally {
-      setIsLoading(false);
-    }
+  const getEfficiencyCategory = (efficiency: number): string => {
+    if (efficiency <= 25) return "Low";
+    if (efficiency <= 50) return "Moderate";
+    if (efficiency <= 75) return "High";
+    return "Very High";
   };
 
   const performAnalysis = async () => {
@@ -481,304 +454,146 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         <div className="glass-card p-6 mb-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-6">
-              <TabsTrigger value="data-entry">Manual Data Entry</TabsTrigger>
-              <TabsTrigger value="api-integration">API Integration</TabsTrigger>
-              <TabsTrigger value="data-table">Current Data</TabsTrigger>
+              <TabsTrigger value="api-integration">Data Source</TabsTrigger>
               <TabsTrigger value="analysis-result" disabled={!analysisPerformed}>
                 Analysis Results
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="data-entry">
-              <Form {...dataEntryForm}>
-                <form onSubmit={dataEntryForm.handleSubmit(onDataEntrySubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {METRICS_INFO.map((metric) => (
-                      <FormField
-                        key={metric.key}
-                        control={dataEntryForm.control}
-                        name={metric.key as any}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white text-sm flex items-center gap-1">
-                              {metric.label}
-                              <span className="text-xs text-blue-300">
-                                ({metric.unit})
-                              </span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={`Enter ${metric.label}`}
-                                className="bg-white/10 border-white/10 text-white"
-                                type="number"
-                                step="0.01"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                    
-                    <FormField
-                      control={dataEntryForm.control}
-                      name="efficiency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white text-sm">
-                            Efficiency (0-100)
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter efficiency score"
-                              className="bg-white/10 border-white/10 text-white"
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={dataEntryForm.control}
-                      name="efficiency_category"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-white text-sm">Efficiency Category</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              {EFFICIENCY_CATEGORIES.map((category) => (
-                                <FormItem 
-                                  key={category.value} 
-                                  className="flex items-center space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <RadioGroupItem 
-                                      value={category.value} 
-                                      checked={field.value === category.value}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal text-white">
-                                    {category.label}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-center mt-8">
-                    <Button 
-                      type="submit" 
-                      disabled={isLoading}
-                      className="bg-blue-500 hover:bg-blue-600 px-8"
-                    >
-                      {isLoading ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Data to Database
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </TabsContent>
-            
             <TabsContent value="api-integration">
-              <Form {...apiConfigForm}>
-                <form onSubmit={apiConfigForm.handleSubmit(onApiConfigSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={apiConfigForm.control}
-                      name="apiSource"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">Data Source</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="bg-white/10 border-white/10 text-white">
-                                <SelectValue placeholder="Select API Source" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {API_SOURCES.map((source) => (
-                                <SelectItem key={source.id} value={source.id}>
-                                  {source.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={apiConfigForm.control}
-                      name="apiKey"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">API Key</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter your API key"
-                              className="bg-white/10 border-white/10 text-white"
-                              type="password"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={apiConfigForm.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">Location (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="City, Country"
-                              className="bg-white/10 border-white/10 text-white"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="flex items-end">
+              <div className="mb-8">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl text-white mb-2">Select Data Source:</h2>
+                  
+                  <div className="flex flex-wrap justify-center gap-4 mt-4">
+                    {API_SOURCES.map(source => (
                       <Button
-                        onClick={() => loadDataForCurrentLocation()}
-                        type="button"
-                        className="w-full bg-blue-500/80 hover:bg-blue-600 flex gap-2"
+                        key={source.id}
+                        onClick={() => handleApiSourceSelect(source.id)}
+                        className={`px-6 py-4 h-auto text-base flex-col ${
+                          selectedApiSource === source.id
+                            ? 'bg-blue-500 hover:bg-blue-600'
+                            : 'bg-white/10 hover:bg-white/20'
+                        }`}
                         disabled={isLoading}
                       >
-                        {isLoading ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MapPin className="h-4 w-4" />
+                        {source.id === 'local' && (
+                          <MapPin className="h-5 w-5 mb-2" />
                         )}
-                        Use Current Location
+                        {source.id === 'google' && (
+                          <Search className="h-5 w-5 mb-2" />
+                        )}
+                        {source.id === 'region' && (
+                          <MapPin className="h-5 w-5 mb-2" />
+                        )}
+                        {source.id === 'openweather' && (
+                          <Cloud className="h-5 w-5 mb-2" />
+                        )}
+                        {source.name}
                       </Button>
-                    </div>
+                    ))}
                   </div>
-                  
-                  <div className="flex justify-center mt-8">
+                </div>
+                
+                {isLoading ? (
+                  <div className="flex justify-center py-10">
+                    <RefreshCw className="h-10 w-10 animate-spin text-blue-400" />
+                    <p className="text-blue-300 ml-3">Loading data...</p>
+                  </div>
+                ) : airQualityData ? (
+                  <div className="space-y-4">
+                    <Card className="bg-white/10 border-white/10 p-4">
+                      <h3 className="text-lg font-medium text-white mb-2">Air Quality Data for {airQualityData.location.name}</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                        <Card className="bg-white/5 p-2">
+                          <div className="text-xs text-blue-400">AQI</div>
+                          <div className={`text-lg font-medium ${getAQIClassification(airQualityData.aqi.value).color}`}>
+                            {airQualityData.aqi.value}
+                          </div>
+                        </Card>
+                        <Card className="bg-white/5 p-2">
+                          <div className="text-xs text-blue-400">PM2.5</div>
+                          <div className="text-white font-medium">
+                            {airQualityData.metrics.pm25.value} {airQualityData.metrics.pm25.unit}
+                          </div>
+                        </Card>
+                        <Card className="bg-white/5 p-2">
+                          <div className="text-xs text-blue-400">O3</div>
+                          <div className="text-white font-medium">
+                            {airQualityData.metrics.o3.value} {airQualityData.metrics.o3.unit}
+                          </div>
+                        </Card>
+                        <Card className="bg-white/5 p-2">
+                          <div className="text-xs text-blue-400">NO2</div>
+                          <div className="text-white font-medium">
+                            {airQualityData.metrics.no2.value} {airQualityData.metrics.no2.unit}
+                          </div>
+                        </Card>
+                      </div>
+                    </Card>
+                    
                     <Button 
-                      type="submit" 
+                      onClick={performAnalysis}
+                      className="w-full bg-blue-500 hover:bg-blue-600 mt-6 py-6 text-lg"
                       disabled={isLoading}
-                      className="bg-blue-500 hover:bg-blue-600 px-8"
                     >
                       {isLoading ? (
                         <>
                           <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Fetching...
+                          Analyzing...
                         </>
                       ) : (
                         <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Fetch Data from API
+                          <Activity className="mr-2 h-4 w-4" />
+                          Analyze Air Quality Data
                         </>
                       )}
                     </Button>
                   </div>
-                </form>
+                ) : (
+                  <div className="text-center py-10">
+                    <AlertCircle className="h-10 w-10 text-blue-400 mx-auto mb-4" />
+                    <p className="text-blue-300">Select a data source to get started</p>
+                    <p className="text-sm text-blue-400 mt-2">
+                      Choose one of the data sources above to fetch air quality data
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <Form {...analysisForm}>
+                <Card className="bg-white/10 border-white/10 p-6 mt-8">
+                  <h3 className="text-lg font-medium text-white mb-4">Analysis Configuration</h3>
+                  
+                  <FormField
+                    control={analysisForm.control}
+                    name="algorithm"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Select Machine Learning Algorithm</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-white/10 border-white/10 text-white">
+                              <SelectValue placeholder="Select Algorithm" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {ML_ALGORITHMS.map((algo) => (
+                              <SelectItem key={algo.id} value={algo.id}>
+                                {algo.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </Card>
               </Form>
-              
-              <div className="mt-8 p-4 border border-white/10 rounded-lg bg-white/5">
-                <h3 className="text-lg text-white mb-2">API Integration Notes</h3>
-                <ul className="list-disc list-inside text-sm text-blue-300 space-y-1">
-                  <li>For OpenWeather API, get your API key from <a href="https://openweathermap.org/api" target="_blank" rel="noopener noreferrer" className="underline">OpenWeatherMap</a></li>
-                  <li>For Google Air Quality API, get your API key from <a href="https://developers.google.com/maps/documentation/air-quality" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></li>
-                  <li>Data will be stored in your Supabase database for analysis</li>
-                  <li>Leaving location blank will use current location (if available)</li>
-                </ul>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="data-table">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg text-white">Database Records</h3>
-                <Button 
-                  onClick={fetchDataFromSupabase} 
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-500/30 text-blue-300 hover:bg-blue-500/20"
-                >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh Data
-                </Button>
-              </div>
-              
-              {apiData.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table className="border border-white/10 rounded-lg">
-                    <TableHeader className="bg-white/5">
-                      <TableRow>
-                        <TableHead className="text-blue-300">PM2.5</TableHead>
-                        <TableHead className="text-blue-300">PM10</TableHead>
-                        <TableHead className="text-blue-300">NO2</TableHead>
-                        <TableHead className="text-blue-300">O3</TableHead>
-                        <TableHead className="text-blue-300">Temperature</TableHead>
-                        <TableHead className="text-blue-300">Efficiency</TableHead>
-                        <TableHead className="text-blue-300">Category</TableHead>
-                        <TableHead className="text-blue-300">Source</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {apiData.map((row, index) => (
-                        <TableRow key={index} className="border-white/5">
-                          <TableCell className="text-white">{row.pm25}</TableCell>
-                          <TableCell className="text-white">{row.pm10}</TableCell>
-                          <TableCell className="text-white">{row.no2}</TableCell>
-                          <TableCell className="text-white">{row.o3}</TableCell>
-                          <TableCell className="text-white">{row.air_temperature}</TableCell>
-                          <TableCell className="text-white">{row.efficiency}</TableCell>
-                          <TableCell className="text-white">{row.efficiency_category}</TableCell>
-                          <TableCell className="text-white">{row.data_source || 'Unknown'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <AlertCircle className="h-10 w-10 text-blue-400 mx-auto mb-4" />
-                  <p className="text-blue-300">No data available in the database</p>
-                  <p className="text-sm text-blue-400 mt-2">
-                    Add data using the Manual Data Entry tab or fetch from an API
-                  </p>
-                </div>
-              )}
             </TabsContent>
             
             <TabsContent value="analysis-result">
@@ -817,6 +632,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                   </div>
                   
                   <Card className="bg-white/10 border-white/10 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">Metrics Analysis</h3>
+                    
+                    <div className="overflow-x-auto">
+                      <Table className="border border-white/10 rounded-lg">
+                        <TableHeader className="bg-white/5">
+                          <TableRow>
+                            <TableHead className="text-blue-300">Metric</TableHead>
+                            <TableHead className="text-blue-300">Value</TableHead>
+                            <TableHead className="text-blue-300">Unit</TableHead>
+                            <TableHead className="text-blue-300">Impact</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(analysisResult.metrics)
+                            .sort(([, a], [, b]) => (Number(b) as number) - (Number(a) as number))
+                            .map(([key, value]) => {
+                              const metricInfo = METRICS_INFO.find(m => m.key === key);
+                              // Calculate normalized impact (0-100%)
+                              const maxValue = key === 'pm25' ? 500 : key === 'pm10' ? 600 : 100;
+                              const impact = Math.min(100, Math.round((Number(value) / maxValue) * 100));
+                              
+                              let impactColor = "text-green-500";
+                              if (impact > 30) impactColor = "text-yellow-500";
+                              if (impact > 60) impactColor = "text-orange-500";
+                              if (impact > 80) impactColor = "text-red-500";
+                              
+                              return metricInfo ? (
+                                <TableRow key={key} className="border-white/5">
+                                  <TableCell className="text-white">{metricInfo.label}</TableCell>
+                                  <TableCell className="text-white">{value}</TableCell>
+                                  <TableCell className="text-blue-300">{metricInfo.unit}</TableCell>
+                                  <TableCell className={impactColor}>{impact}%</TableCell>
+                                </TableRow>
+                              ) : null;
+                            })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                  
+                  <Card className="bg-white/10 border-white/10 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">Analysis Details</h3>
                     
                     <div className="space-y-6">
@@ -824,7 +680,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                         <h4 className="text-blue-300 text-sm font-medium mb-2">Key Findings</h4>
                         <ul className="list-disc list-inside text-white space-y-1 text-sm">
                           <li>
-                            The analyzed data shows an efficiency score of {analysisResult.aqiScore} 
+                            The analyzed data shows an air quality index of {analysisResult.aqiScore} 
                             which is classified as <span className={analysisResult.classification.color}>{analysisResult.classification.label}</span>.
                           </li>
                           <li>
@@ -835,24 +691,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                           </li>
                         </ul>
                       </div>
-                      
-                      <div>
-                        <h4 className="text-blue-300 text-sm font-medium mb-2">Top Contributing Factors</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          {Object.entries(analysisResult.metrics)
-                            .sort(([, a], [, b]) => (Number(b) as number) - (Number(a) as number))
-                            .slice(0, 4)
-                            .map(([key, value]) => {
-                              const metricInfo = METRICS_INFO.find(m => m.key === key);
-                              return (
-                                <Card key={key} className="bg-white/5 p-2">
-                                  <div className="text-xs text-blue-400">{metricInfo?.label || key}</div>
-                                  <div className="text-white font-medium">{value} {metricInfo?.unit}</div>
-                                </Card>
-                              );
-                            })}
-                        </div>
-                      </div>
                     </div>
                   </Card>
                 </div>
@@ -861,70 +699,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                   <AlertCircle className="h-10 w-10 text-blue-400 mx-auto mb-4" />
                   <p className="text-blue-300">No analysis results yet</p>
                   <p className="text-sm text-blue-400 mt-2">
-                    Use the form below to perform an analysis
+                    Use the Data Source tab to fetch data and run an analysis
                   </p>
                 </div>
               )}
-              
-              <Card className="bg-white/10 border-white/10 p-6 mt-6">
-                <h3 className="text-lg font-medium text-white mb-4">Perform New Analysis</h3>
-                
-                <Form {...analysisForm}>
-                  <form className="space-y-4">
-                    <FormField
-                      control={analysisForm.control}
-                      name="algorithm"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white">Select Machine Learning Algorithm</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              setAlgorithm(value);
-                            }}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="bg-white/10 border-white/10 text-white">
-                                <SelectValue placeholder="Select Algorithm" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {ML_ALGORITHMS.map((algo) => (
-                                <SelectItem key={algo.id} value={algo.id}>
-                                  {algo.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="flex justify-center mt-4">
-                      <Button 
-                        type="button"
-                        onClick={performAnalysis}
-                        disabled={isLoading || apiData.length === 0}
-                        className="bg-blue-500 hover:bg-blue-600 px-8"
-                      >
-                        {isLoading ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Analyzing...
-                          </>
-                        ) : (
-                          <>
-                            <Activity className="mr-2 h-4 w-4" />
-                            Run Analysis
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>
