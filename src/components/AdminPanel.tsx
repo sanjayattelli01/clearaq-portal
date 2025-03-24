@@ -15,7 +15,8 @@ import {
   LogOut,
   Activity,
   Save,
-  Upload
+  Upload,
+  Cloud
 } from "lucide-react";
 import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
@@ -646,7 +647,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                         </TableHeader>
                         <TableBody>
                           {Object.entries(analysisResult.metrics)
-                            .sort(([, a], [, b]) => (Number(b) as number) - (Number(a) as number))
+                            .sort(([, a], [, b]) => {
+                              // Fix the sort function to handle types correctly
+                              const valueA = Number(a) || 0;
+                              const valueB = Number(b) || 0;
+                              return valueB - valueA;
+                            })
                             .map(([key, value]) => {
                               const metricInfo = METRICS_INFO.find(m => m.key === key);
                               // Calculate normalized impact (0-100%)
