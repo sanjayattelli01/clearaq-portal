@@ -12,9 +12,10 @@ import { Database } from "lucide-react";
 
 interface AQIDataTableProps {
   data: any[];
+  title?: string;
 }
 
-const AQIDataTable: React.FC<AQIDataTableProps> = ({ data }) => {
+const AQIDataTable: React.FC<AQIDataTableProps> = ({ data, title = "Sample AQI Dataset" }) => {
   if (!data || data.length === 0) {
     return <div className="text-center py-10 text-blue-300">No data available</div>;
   }
@@ -26,7 +27,7 @@ const AQIDataTable: React.FC<AQIDataTableProps> = ({ data }) => {
     <div>
       <div className="flex items-center gap-2 mb-4">
         <Database className="h-4 w-4 text-blue-400" />
-        <h3 className="text-lg font-medium text-white">Sample AQI Dataset</h3>
+        <h3 className="text-lg font-medium text-white">{title}</h3>
       </div>
       
       <div className="rounded-md border border-white/10 overflow-auto">
@@ -58,10 +59,6 @@ const AQIDataTable: React.FC<AQIDataTableProps> = ({ data }) => {
             ))}
           </TableBody>
         </Table>
-      </div>
-      
-      <div className="mt-4 text-sm text-blue-300/70 italic">
-        Note: This is a sample dataset for air quality analysis using Random Forest algorithm
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { AlertCircle, ThumbsUp, ThumbsDown, BadgeInfo, Activity } from "lucide-react";
+import { AlertCircle, ThumbsUp, ThumbsDown, BadgeInfo, Activity, BarChart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -11,15 +11,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { METRICS_INFO } from "@/utils/types";
+import ModelPredictionsTable from "./ModelPredictionsTable";
+
+interface ModelPrediction {
+  Model: string;
+  "Predicted Efficiency Category": string;
+}
+
+interface ModelMetrics {
+  [key: string]: {
+    Accuracy: number;
+    Precision: number;
+    Recall: number;
+    "F1-Score": number;
+  };
+}
 
 interface AQIAnalysisResultProps {
   result: {
     aqiScore: number;
     classification: { label: string; color: string };
-    similarities: Array<{ id: number; similarity: number; data: any }>;
-    bestMatch: { id: number; similarity: number; data: any };
-    worstMatch: { id: number; similarity: number; data: any };
+    similarities?: Array<{ id: number; similarity: number; data: any }>;
+    bestMatch?: { id: number; similarity: number; data: any };
+    worstMatch?: { id: number; similarity: number; data: any };
     metrics: Record<string, number>;
+    apiResponse?: {
+      predictions: ModelPrediction[];
+      metrics: ModelMetrics;
+      final_recommendation: string;
+    };
   };
 }
 
@@ -56,7 +76,7 @@ const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
             
             <p className="text-center text-blue-300 text-sm max-w-md">
               The calculated Air Quality Index based on provided metrics and advanced analysis
-              with Random Forest algorithm.
+              with machine learning algorithms.
             </p>
           </div>
         </Card>
@@ -73,23 +93,6 @@ const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
                 <ThumbsUp className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <h4 className="font-medium text-white mb-1">Best Match (Sample #{result.bestMatch.id})</h4>
-                <p className="text-sm text-blue-300">
-                  {(result.bestMatch.similarity * 100).toFixed(2)}% similarity score
-                  {result.bestMatch.similarity > 0.7 ? 
-                    " - Strong correlation found!" : 
-                    result.bestMatch.similarity > 0.5 ? 
-                      " - Moderate correlation" : 
-                      " - Weak correlation"}
-                </p>
-              </div>
-            </li>
-            
-            <li className="flex items-start gap-3">
-              <div className="mt-0.5">
-                <AlertCircle className="h-5 w-5 text-orange-500" />
-              </div>
-              <div>
                 <h4 className="font-medium text-white mb-1">Primary Concerns</h4>
                 <p className="text-sm text-blue-300">
                   {getPrimaryConcerns(result.metrics)}
@@ -99,12 +102,16 @@ const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
             
             <li className="flex items-start gap-3">
               <div className="mt-0.5">
-                <Activity className="h-5 w-5 text-blue-400" />
+                <BarChart className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <h4 className="font-medium text-white mb-1">Analysis Confidence</h4>
+                <h4 className="font-medium text-white mb-1">Input Values</h4>
                 <p className="text-sm text-blue-300">
-                  {getConfidenceLevel(result.similarities)}
+                  PM2.5: {result.metrics.pm25?.toFixed(2)}, 
+                  PM10: {result.metrics.pm10?.toFixed(2)}, 
+                  NO2: {result.metrics.no2?.toFixed(2)}, 
+                  SO2: {result.metrics.so2?.toFixed(2)}, 
+                  O3: {result.metrics.o3?.toFixed(2)}
                 </p>
               </div>
             </li>
@@ -112,56 +119,46 @@ const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
         </Card>
       </div>
       
+      {result.apiResponse && (
+        <Card className="p-6 glass-card border-white/10">
+          <ModelPredictionsTable 
+            predictions={result.apiResponse.predictions}
+            metrics={result.apiResponse.metrics}
+            recommendation={result.apiResponse.final_recommendation}
+          />
+        </Card>
+      )}
+      
       <Card className="p-6 glass-card border-white/10">
         <div className="flex items-center gap-3 mb-4">
-          <ThumbsUp className="h-5 w-5 text-blue-400" />
-          <h3 className="text-xl font-semibold text-white">Similarity Analysis</h3>
+          <BarChart className="h-5 w-5 text-blue-400" />
+          <h3 className="text-xl font-semibold text-white">Input Metrics Details</h3>
         </div>
         
         <div className="rounded-md border border-white/10 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-white/5">
-                <TableHead className="text-white">Sample #</TableHead>
-                <TableHead className="text-white">Similarity</TableHead>
-                {METRICS_INFO.slice(0, 5).map(metric => (
-                  <TableHead key={metric.key} className="text-white">
-                    {metric.label}
-                  </TableHead>
-                ))}
-                <TableHead className="text-white">...</TableHead>
+                <TableHead className="text-white">Metric</TableHead>
+                <TableHead className="text-white">Value</TableHead>
+                <TableHead className="text-white">Impact</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="bg-white/10 text-white font-medium">
-                <TableCell>Current</TableCell>
-                <TableCell>-</TableCell>
-                {METRICS_INFO.slice(0, 5).map(metric => (
-                  <TableCell key={metric.key}>
-                    {result.metrics[metric.key]?.toFixed(2) || 'N/A'}
-                  </TableCell>
-                ))}
-                <TableCell>...</TableCell>
-              </TableRow>
-              
-              {result.similarities.slice(0, 3).map((item) => (
-                <TableRow key={item.id} className="hover:bg-white/5">
-                  <TableCell className="font-medium">{item.id}</TableCell>
-                  <TableCell>{(item.similarity * 100).toFixed(2)}%</TableCell>
-                  {METRICS_INFO.slice(0, 5).map(metric => (
-                    <TableCell key={metric.key}>
-                      {item.data[metric.key]?.toFixed(2) || 'N/A'}
+              {Object.entries(result.metrics).map(([key, value]) => {
+                const metricInfo = METRICS_INFO.find(m => m.key === key);
+                return (
+                  <TableRow key={key} className="hover:bg-white/5">
+                    <TableCell className="font-medium text-blue-300">
+                      {metricInfo?.label || key}
                     </TableCell>
-                  ))}
-                  <TableCell>...</TableCell>
-                </TableRow>
-              ))}
+                    <TableCell>{typeof value === 'number' ? value.toFixed(2) : value}</TableCell>
+                    <TableCell>{getMetricImpact(key, value)}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-        </div>
-        
-        <div className="mt-4 text-sm text-blue-300/70 italic">
-          Note: Only showing top 3 most similar samples and select metrics for readability
         </div>
       </Card>
     </div>
@@ -199,21 +196,40 @@ const getPrimaryConcerns = (metrics: Record<string, number>): string => {
   return concerns.join(", ");
 };
 
-const getConfidenceLevel = (
-  similarities: Array<{ id: number; similarity: number; data: any }>
-): string => {
-  const topSimilarities = similarities.slice(0, 3).map(s => s.similarity);
-  const avgSimilarity = topSimilarities.reduce((sum, val) => sum + val, 0) / topSimilarities.length;
+const getMetricImpact = (metric: string, value: number): JSX.Element => {
+  let impact = "Neutral";
+  let color = "text-blue-300";
   
-  if (avgSimilarity > 0.8) {
-    return "Very High - Strong correlation with reference data";
-  } else if (avgSimilarity > 0.6) {
-    return "High - Good match with reference samples";
-  } else if (avgSimilarity > 0.4) {
-    return "Moderate - Some uncertainty in analysis";
-  } else {
-    return "Low - Analysis contains significant uncertainty";
+  // Define thresholds for different metrics
+  const thresholds: Record<string, [number, number][]> = {
+    pm25: [[0, 12, "Low"], [12.1, 35.4, "Moderate"], [35.5, 500, "High"]],
+    pm10: [[0, 54, "Low"], [55, 154, "Moderate"], [155, 500, "High"]],
+    o3: [[0, 0.054, "Low"], [0.055, 0.07, "Moderate"], [0.071, 0.5, "High"]],
+    no2: [[0, 0.053, "Low"], [0.054, 0.1, "Moderate"], [0.101, 2, "High"]],
+    so2: [[0, 0.035, "Low"], [0.036, 0.075, "Moderate"], [0.076, 1, "High"]],
+    co: [[0, 4.4, "Low"], [4.5, 9.4, "Moderate"], [9.5, 50, "High"]]
+  };
+  
+  // Set impact based on thresholds if available for the metric
+  if (thresholds[metric]) {
+    for (const [min, max, level] of thresholds[metric]) {
+      if (value >= min && value <= max) {
+        impact = level as string;
+        
+        if (impact === "Low") {
+          color = "text-green-500";
+        } else if (impact === "Moderate") {
+          color = "text-yellow-500";
+        } else if (impact === "High") {
+          color = "text-red-500";
+        }
+        
+        break;
+      }
+    }
   }
+  
+  return <span className={color}>{impact}</span>;
 };
 
 export default AQIAnalysisResult;
