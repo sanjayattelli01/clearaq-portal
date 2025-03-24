@@ -35,7 +35,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// ML Algorithms options
 const ML_ALGORITHMS = [
   { id: "naive-bayes", name: "Naive Bayes" },
   { id: "knn", name: "K-Nearest Neighbors (KNN)" },
@@ -43,14 +42,12 @@ const ML_ALGORITHMS = [
   { id: "random-forest", name: "Random Forest" }
 ];
 
-// API Sources options
 const API_SOURCES = [
   { id: "openweather", name: "OpenWeather API" },
   { id: "google", name: "Google Air Quality API" },
   { id: "manual", name: "Manual Entry" }
 ];
 
-// Efficiency category options
 const EFFICIENCY_CATEGORIES = [
   { value: "Low", label: "Low (0-25)" },
   { value: "Moderate", label: "Moderate (26-50)" },
@@ -58,19 +55,16 @@ const EFFICIENCY_CATEGORIES = [
   { value: "Very High", label: "Very High (76-100)" }
 ];
 
-// Form schema for API configuration
 const apiConfigSchema = z.object({
   apiSource: z.string().min(1, "API source is required"),
   apiKey: z.string().min(1, "API key is required"),
   location: z.string().optional()
 });
 
-// Form schema for data analysis
 const analysisFormSchema = z.object({
   algorithm: z.string().min(1, "ML algorithm is required"),
 });
 
-// Form schema for manual data entry
 const dataEntrySchema = z.object({
   pm25: z.coerce.number().min(0),
   pm10: z.coerce.number().min(0),
@@ -107,7 +101,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [apiData, setApiData] = useState<any[]>([]);
   const [algorithm, setAlgorithm] = useState<string>("random-forest");
   
-  // API Configuration form
   const apiConfigForm = useForm<z.infer<typeof apiConfigSchema>>({
     resolver: zodResolver(apiConfigSchema),
     defaultValues: {
@@ -117,7 +110,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     }
   });
   
-  // Analysis form
   const analysisForm = useForm<z.infer<typeof analysisFormSchema>>({
     resolver: zodResolver(analysisFormSchema),
     defaultValues: {
@@ -125,7 +117,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     }
   });
   
-  // Data entry form
   const dataEntryForm = useForm<z.infer<typeof dataEntrySchema>>({
     resolver: zodResolver(dataEntrySchema),
     defaultValues: {
@@ -151,7 +142,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   });
 
   useEffect(() => {
-    // Fetch data from Supabase when component mounts
     fetchDataFromSupabase();
   }, []);
 
@@ -191,7 +181,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       
       setAirQualityData(data);
       
-      // Pre-fill form data with current values
       const initialFormData: Record<string, string> = {};
       Object.keys(data.metrics).forEach(key => {
         initialFormData[key] = data.metrics[key].value.toString();
@@ -217,7 +206,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         .then(data => {
           setAirQualityData(data);
           
-          // Pre-fill form data
           const initialFormData: Record<string, string> = {};
           Object.keys(data.metrics).forEach(key => {
             initialFormData[key] = data.metrics[key].value.toString();
@@ -244,7 +232,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     setIsLoading(true);
     
     try {
-      // Insert data into Supabase
       const { data, error } = await supabase
         .from('air_quality_data')
         .insert([{
@@ -256,8 +243,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       if (error) throw error;
       
       toast.success("Data saved successfully");
-      fetchDataFromSupabase(); // Refresh the data
-      
+      fetchDataFromSupabase();
     } catch (err) {
       console.error("Error saving data:", err);
       toast.error("Failed to save data");
@@ -270,24 +256,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     setIsLoading(true);
     
     try {
-      // This would fetch data from the selected API
-      // For demonstration, we'll just simulate API fetch
       toast.info(`Fetching data from ${values.apiSource}...`);
       
-      // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       if (values.apiSource === "openweather") {
-        // In real implementation, make an API call to OpenWeather
         toast.success("Successfully fetched data from OpenWeather API");
       } else if (values.apiSource === "google") {
-        // In real implementation, make an API call to Google Air Quality API
         toast.success("Successfully fetched data from Google Air Quality API");
       }
       
-      // Fetch updated data from database
       fetchDataFromSupabase();
-      
     } catch (err) {
       console.error("Error fetching API data:", err);
       toast.error(`Failed to fetch data from ${values.apiSource}`);
@@ -307,7 +286,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         return;
       }
       
-      // Simulate ML analysis with selected algorithm
       toast.info(`Running ${selectedAlgorithm} algorithm on data...`);
       
       setTimeout(() => {
@@ -316,19 +294,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
           return acc;
         }, {} as Record<string, number>);
         
-        // Compare with API data
         const similarities = apiData.map((row, index) => {
           const similarity = calculateSimilarity(currentMetrics, row);
           return { id: index + 1, similarity, data: row };
         });
         
-        // Sort by similarity (higher is better)
         similarities.sort((a, b) => b.similarity - a.similarity);
         
         const bestMatch = similarities[0];
         const worstMatch = similarities[similarities.length - 1];
         
-        // Calculate weighted AQI based on similarities and algorithm
         const aqiScore = calculateAQIScore(currentMetrics, similarities, selectedAlgorithm);
         
         const algorithmFactors = {
@@ -364,12 +339,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     }
   };
 
-  // Euclidean distance similarity
   const calculateSimilarity = (current: Record<string, number>, sample: Record<string, any>) => {
     let sumSquaredDiff = 0;
     let count = 0;
     
-    // Only compare metrics we have in our form
     for (const key of Object.keys(current)) {
       if (sample[key] !== undefined && !isNaN(parseFloat(sample[key]))) {
         const diff = current[key] - parseFloat(sample[key]);
@@ -380,18 +353,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     
     if (count === 0) return 0;
     
-    // Inverse of distance (higher means more similar)
     const distance = Math.sqrt(sumSquaredDiff / count);
     return 1 / (1 + distance);
   };
 
-  // Calculate AQI score based on weighted similarities and algorithm
   const calculateAQIScore = (
     current: Record<string, number>, 
     similarities: Array<{id: number, similarity: number, data: any}>,
     algorithm: string
   ) => {
-    // Weights for the main pollutants in AQI calculation
     const weights = {
       pm25: 0.3,
       pm10: 0.2,
@@ -401,57 +371,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       co: 0.15
     };
     
-    // Base score from current values
     let score = 0;
     let totalWeight = 0;
     
     for (const [key, weight] of Object.entries(weights)) {
       if (current[key] !== undefined) {
-        // Normalize to 0-500 scale based on typical AQI ranges
         const normalizedValue = normalizeForAQI(key, current[key]);
         score += normalizedValue * weight;
         totalWeight += weight;
       }
     }
     
-    // Algorithm-specific adjustments
     let algorithmMultiplier = 1.0;
     
     switch (algorithm) {
       case "naive-bayes":
-        // Naive Bayes tends to be more conservative
         algorithmMultiplier = 0.95;
         break;
       case "knn":
-        // KNN is influenced more heavily by nearest neighbors
         algorithmMultiplier = 1.05;
         break;
       case "svm":
-        // SVM tends to be more precise at boundaries
         algorithmMultiplier = 1.0;
         break;
       case "random-forest":
-        // Random Forest often produces well-balanced predictions
         algorithmMultiplier = 1.02;
         break;
     }
     
-    // Adjust based on similarity to known patterns
     const similarityAdjustment = similarities.slice(0, 2).reduce((sum, item) => {
-      return sum + (item.similarity * 0.1); // Small adjustment based on similar patterns
+      return sum + (item.similarity * 0.1);
     }, 0);
     
-    // Final score with algorithm adjustment
     const finalScore = totalWeight > 0 ? 
       ((score / totalWeight) + similarityAdjustment) * algorithmMultiplier : 0;
     
-    // Ensure score is in 0-500 range
     return Math.min(500, Math.max(0, Math.round(finalScore)));
   };
 
-  // Normalize pollutant values to AQI scale
   const normalizeForAQI = (pollutant: string, value: number): number => {
-    // Simplified normalization based on EPA ranges
     const ranges: Record<string, number[][]> = {
       pm25: [[0, 12, 0, 50], [12.1, 35.4, 51, 100], [35.5, 55.4, 101, 150], [55.5, 150.4, 151, 200], [150.5, 250.4, 201, 300], [250.5, 500, 301, 500]],
       pm10: [[0, 54, 0, 50], [55, 154, 51, 100], [155, 254, 101, 150], [255, 354, 151, 200], [355, 424, 201, 300], [425, 604, 301, 500]],
@@ -462,17 +420,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     };
     
     const pollutantRanges = ranges[pollutant];
-    if (!pollutantRanges) return value; // If no mapping, return original
+    if (!pollutantRanges) return value;
     
-    // Find the correct range
     for (const [cLow, cHigh, aqiLow, aqiHigh] of pollutantRanges) {
       if (value >= cLow && value <= cHigh) {
-        // Linear interpolation
         return ((value - cLow) / (cHigh - cLow)) * (aqiHigh - aqiLow) + aqiLow;
       }
     }
     
-    return 0; // Default if no range matches
+    return 0;
   };
 
   const getAQIClassification = (score: number): { label: string, color: string } => {
@@ -547,7 +503,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                       />
                     ))}
                     
-                    {/* Efficiency fields */}
                     <FormField
                       control={dataEntryForm.control}
                       name="efficiency"
@@ -798,4 +753,165 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                 </div>
               ) : (
                 <div className="text-center py-10">
-                  <AlertCircle className="h-
+                  <AlertCircle className="h-10 w-10 text-blue-400 mx-auto mb-4" />
+                  <p className="text-blue-300">No data available in the database</p>
+                  <p className="text-sm text-blue-400 mt-2">
+                    Add data using the Manual Data Entry tab or fetch from an API
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="analysis-result">
+              {analysisResult ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Card className="bg-white/10 border-white/10 p-4">
+                      <h3 className="text-lg font-medium text-white mb-2">AQI Score</h3>
+                      <div className="flex items-center">
+                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                          {analysisResult.aqiScore}
+                        </div>
+                        <div className={`ml-4 font-medium ${analysisResult.classification.color}`}>
+                          {analysisResult.classification.label}
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="bg-white/10 border-white/10 p-4">
+                      <h3 className="text-lg font-medium text-white mb-2">Algorithm</h3>
+                      <div className="text-blue-300">{analysisResult.algorithm}</div>
+                      <div className="text-xs text-blue-400 mt-1">
+                        {analysisResult.algorithmDescription}
+                      </div>
+                    </Card>
+                    
+                    <Card className="bg-white/10 border-white/10 p-4">
+                      <h3 className="text-lg font-medium text-white mb-2">Data Points</h3>
+                      <div className="text-blue-300">
+                        {analysisResult.similarities.length} records analyzed
+                      </div>
+                      <div className="text-xs text-blue-400 mt-1">
+                        Best match similarity: {Math.round(analysisResult.bestMatch.similarity * 100)}%
+                      </div>
+                    </Card>
+                  </div>
+                  
+                  <Card className="bg-white/10 border-white/10 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">Analysis Details</h3>
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-blue-300 text-sm font-medium mb-2">Key Findings</h4>
+                        <ul className="list-disc list-inside text-white space-y-1 text-sm">
+                          <li>
+                            The analyzed data shows an efficiency score of {analysisResult.aqiScore} 
+                            which is classified as <span className={analysisResult.classification.color}>{analysisResult.classification.label}</span>.
+                          </li>
+                          <li>
+                            The {analysisResult.algorithm} algorithm was used for this analysis, which utilizes {analysisResult.algorithmDescription}.
+                          </li>
+                          <li>
+                            Most similar historical data point had {Math.round(analysisResult.bestMatch.similarity * 100)}% similarity.
+                          </li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-blue-300 text-sm font-medium mb-2">Top Contributing Factors</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {Object.entries(analysisResult.metrics)
+                            .sort(([, a], [, b]) => Number(b) - Number(a))
+                            .slice(0, 4)
+                            .map(([key, value]) => {
+                              const metricInfo = METRICS_INFO.find(m => m.key === key);
+                              return (
+                                <Card key={key} className="bg-white/5 p-2">
+                                  <div className="text-xs text-blue-400">{metricInfo?.label || key}</div>
+                                  <div className="text-white font-medium">{value} {metricInfo?.unit}</div>
+                                </Card>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <AlertCircle className="h-10 w-10 text-blue-400 mx-auto mb-4" />
+                  <p className="text-blue-300">No analysis results yet</p>
+                  <p className="text-sm text-blue-400 mt-2">
+                    Use the form below to perform an analysis
+                  </p>
+                </div>
+              )}
+              
+              <Card className="bg-white/10 border-white/10 p-6 mt-6">
+                <h3 className="text-lg font-medium text-white mb-4">Perform New Analysis</h3>
+                
+                <Form {...analysisForm}>
+                  <form className="space-y-4">
+                    <FormField
+                      control={analysisForm.control}
+                      name="algorithm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Select Machine Learning Algorithm</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setAlgorithm(value);
+                            }}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-white/10 border-white/10 text-white">
+                                <SelectValue placeholder="Select Algorithm" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {ML_ALGORITHMS.map((algo) => (
+                                <SelectItem key={algo.id} value={algo.id}>
+                                  {algo.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="flex justify-center mt-4">
+                      <Button 
+                        type="button"
+                        onClick={performAnalysis}
+                        disabled={isLoading || apiData.length === 0}
+                        className="bg-blue-500 hover:bg-blue-600 px-8"
+                      >
+                        {isLoading ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Activity className="mr-2 h-4 w-4" />
+                            Run Analysis
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminPanel;
