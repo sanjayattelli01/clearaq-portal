@@ -16,7 +16,9 @@ import {
   Activity,
   Save,
   Upload,
-  Cloud
+  Cloud,
+  BarChart4,
+  FileInput
 } from "lucide-react";
 import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
@@ -35,9 +37,23 @@ import AdminHeader from "./AdminHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { 
+  CartesianGrid, 
+  Legend, 
+  Line, 
+  LineChart, 
+  Bar,
+  BarChart,
+  ResponsiveContainer, 
+  Tooltip, 
+  XAxis, 
+  YAxis 
+} from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 const ML_ALGORITHMS = [
   { id: "naive-bayes", name: "Naive Bayes" },
@@ -62,6 +78,25 @@ const analysisFormSchema = z.object({
   algorithm: z.string().min(1, "ML algorithm is required"),
 });
 
+const manualDataFormSchema = z.object({
+  pm25: z.string().optional().transform(val => parseFloat(val) || 0),
+  pm10: z.string().optional().transform(val => parseFloat(val) || 0),
+  no: z.string().optional().transform(val => parseFloat(val) || 0),
+  no2: z.string().optional().transform(val => parseFloat(val) || 0),
+  nox: z.string().optional().transform(val => parseFloat(val) || 0),
+  nh3: z.string().optional().transform(val => parseFloat(val) || 0),
+  so2: z.string().optional().transform(val => parseFloat(val) || 0),
+  co: z.string().optional().transform(val => parseFloat(val) || 0),
+  o3: z.string().optional().transform(val => parseFloat(val) || 0),
+  benzene: z.string().optional().transform(val => parseFloat(val) || 0),
+  humidity: z.string().optional().transform(val => parseFloat(val) || 0),
+  wind_speed: z.string().optional().transform(val => parseFloat(val) || 0),
+  wind_direction: z.string().optional().transform(val => parseFloat(val) || 0),
+  solar_radiation: z.string().optional().transform(val => parseFloat(val) || 0),
+  rainfall: z.string().optional().transform(val => parseFloat(val) || 0),
+  temperature: z.string().optional().transform(val => parseFloat(val) || 0),
+});
+
 interface AdminPanelProps {
   onLogout: () => void;
 }
@@ -76,6 +111,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [analysisPerformed, setAnalysisPerformed] = useState<boolean>(false);
   const [apiData, setApiData] = useState<any[]>([]);
   const [selectedApiSource, setSelectedApiSource] = useState<string>("local");
+  const [chartType, setChartType] = useState<string>("bar");
   
   const apiConfigForm = useForm<z.infer<typeof apiConfigSchema>>({
     resolver: zodResolver(apiConfigSchema),
@@ -89,6 +125,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     resolver: zodResolver(analysisFormSchema),
     defaultValues: {
       algorithm: "random-forest"
+    }
+  });
+  
+  const manualDataForm = useForm<z.infer<typeof manualDataFormSchema>>({
+    resolver: zodResolver(manualDataFormSchema),
+    defaultValues: {
+      pm25: "0",
+      pm10: "0",
+      no: "0",
+      no2: "0",
+      nox: "0",
+      nh3: "0",
+      so2: "0",
+      co: "0",
+      o3: "0",
+      benzene: "0",
+      humidity: "0",
+      wind_speed: "0",
+      wind_direction: "0",
+      solar_radiation: "0",
+      rainfall: "0",
+      temperature: "0",
     }
   });
 
@@ -135,6 +193,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       const initialFormData: Record<string, string> = {};
       Object.keys(data.metrics).forEach(key => {
         initialFormData[key] = data.metrics[key].value.toString();
+        
+        // Update manual data form with fetched values
+        manualDataForm.setValue(key as any, data.metrics[key].value.toString());
       });
       
       setFormData(initialFormData);
@@ -160,6 +221,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
           const initialFormData: Record<string, string> = {};
           Object.keys(data.metrics).forEach(key => {
             initialFormData[key] = data.metrics[key].value.toString();
+            
+            // Update manual data form with fetched values
+            manualDataForm.setValue(key as any, data.metrics[key].value.toString());
           });
           
           setFormData(initialFormData);
@@ -206,6 +270,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       const initialFormData: Record<string, string> = {};
       Object.keys(data.metrics).forEach(key => {
         initialFormData[key] = data.metrics[key].value.toString();
+        
+        // Update manual data form with fetched values
+        manualDataForm.setValue(key as any, data.metrics[key].value.toString());
       });
       
       setFormData(initialFormData);
@@ -260,6 +327,90 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       toast.error("Failed to save data to database");
     }
   };
+  
+  const handleManualDataSubmit = async (values: z.infer<typeof manualDataFormSchema>) => {
+    setIsLoading(true);
+    
+    try {
+      // Create metrics object from form values
+      const metrics: Record<string, any> = {};
+      Object.entries(values).forEach(([key, value]) => {
+        metrics[key] = {
+          value: value,
+          unit: getUnitForMetric(key)
+        };
+      });
+      
+      // Create AirQualityData object
+      const manualData: AirQualityData = {
+        location: {
+          name: "Manual Entry",
+          coordinates: { latitude: 0, longitude: 0 }
+        },
+        timestamp: new Date().toISOString(),
+        metrics: metrics as any,
+        aqi: {
+          value: calculateAQIFromMetrics(metrics),
+          category: 'moderate',
+          description: 'Manually entered data'
+        },
+        source: 'manual'
+      };
+      
+      setAirQualityData(manualData);
+      
+      // Save to Supabase
+      const { error } = await supabase
+        .from('air_quality_data')
+        .insert({
+          pm25: values.pm25,
+          pm10: values.pm10,
+          no: values.no,
+          no2: values.no2,
+          nox: values.nox,
+          nh3: values.nh3,
+          so2: values.so2,
+          co: values.co,
+          o3: values.o3,
+          benzene: values.benzene,
+          humidity: values.humidity,
+          wind_speed: values.wind_speed,
+          wind_direction: values.wind_direction,
+          solar_radiation: values.solar_radiation,
+          rainfall: values.rainfall,
+          air_temperature: values.temperature,
+          efficiency: Math.floor(Math.random() * 100),
+          efficiency_category: getEfficiencyCategory(Math.floor(Math.random() * 100)),
+          data_source: 'manual'
+        });
+      
+      if (error) throw error;
+      
+      toast.success("Manual data saved successfully");
+      fetchDataFromSupabase();
+      
+    } catch (err) {
+      console.error("Error saving manual data:", err);
+      toast.error("Failed to save manual data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const getUnitForMetric = (metricKey: string): string => {
+    const metricInfo = METRICS_INFO.find(m => m.key === metricKey);
+    return metricInfo?.unit || '';
+  };
+  
+  const calculateAQIFromMetrics = (metrics: Record<string, any>): number => {
+    // Simple AQI calculation based on PM2.5 and PM10
+    const pm25 = parseFloat(metrics.pm25) || 0;
+    const pm10 = parseFloat(metrics.pm10) || 0;
+    const o3 = parseFloat(metrics.o3) || 0;
+    
+    // Very simplified AQI calculation
+    return Math.round((pm25 * 4 + pm10 * 2 + o3 * 3) / 3);
+  };
 
   const getEfficiencyCategory = (efficiency: number): string => {
     if (efficiency <= 25) return "Low";
@@ -279,14 +430,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         return;
       }
       
+      // Get current metrics either from manual form or fetched data
+      const currentMetrics: Record<string, number> = {};
+      if (activeTab === "manual-data") {
+        const formValues = manualDataForm.getValues();
+        Object.entries(formValues).forEach(([key, value]) => {
+          currentMetrics[key] = typeof value === 'string' ? parseFloat(value) || 0 : value || 0;
+        });
+      } else {
+        // Use the data from the API
+        if (airQualityData) {
+          Object.entries(airQualityData.metrics).forEach(([key, metric]) => {
+            currentMetrics[key] = metric.value;
+          });
+        } else {
+          toast.error("No data available. Please fetch or enter data first.");
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       toast.info(`Running ${selectedAlgorithm} algorithm on data...`);
       
       setTimeout(() => {
-        const currentMetrics = Object.entries(formData).reduce((acc, [key, value]) => {
-          acc[key] = parseFloat(value) || 0;
-          return acc;
-        }, {} as Record<string, number>);
-        
         const similarities = apiData.map((row, index) => {
           const similarity = calculateSimilarity(currentMetrics, row);
           return { id: index + 1, similarity, data: row };
@@ -306,6 +472,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
           "random-forest": "Ensemble decision trees"
         };
         
+        // Prepare chart data
+        const chartData = Object.entries(currentMetrics).map(([key, value]) => {
+          const metricInfo = METRICS_INFO.find(m => m.key === key);
+          const maxValue = key === 'pm25' ? 500 : key === 'pm10' ? 600 : 100;
+          const impact = Math.min(100, Math.round((value / maxValue) * 100));
+          
+          return {
+            name: metricInfo?.label || key,
+            value: value,
+            impact: impact,
+            unit: metricInfo?.unit || ''
+          };
+        });
+        
         const result = {
           aqiScore,
           classification: getAQIClassification(aqiScore),
@@ -314,7 +494,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
           worstMatch,
           metrics: currentMetrics,
           algorithm: selectedAlgorithm,
-          algorithmDescription: algorithmFactors[selectedAlgorithm as keyof typeof algorithmFactors] || "Unknown approach"
+          algorithmDescription: algorithmFactors[selectedAlgorithm as keyof typeof algorithmFactors] || "Unknown approach",
+          chartData
         };
         
         setAnalysisResult(result);
@@ -424,7 +605,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     return 0;
   };
 
-  const getAQIClassification = (score: number): { label: string, color: string } => {
+  const getAQIClassification = (score: number): { label: string; color: string } => {
     if (score <= 50) {
       return { label: "Good", color: "text-green-500" };
     } else if (score <= 100) {
@@ -456,6 +637,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="api-integration">Data Source</TabsTrigger>
+              <TabsTrigger value="manual-data">Manual Data Entry</TabsTrigger>
+              <TabsTrigger value="analysis-config">Analysis Config</TabsTrigger>
               <TabsTrigger value="analysis-result" disabled={!analysisPerformed}>
                 Analysis Results
               </TabsTrigger>
@@ -561,9 +744,360 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                   </div>
                 )}
               </div>
-              
+            </TabsContent>
+            
+            <TabsContent value="manual-data">
+              <div className="mb-8">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl text-white mb-2">Air Quality Inputs</h2>
+                  <p className="text-blue-300">Enter values manually or use pre-filled data</p>
+                </div>
+                
+                <Form {...manualDataForm}>
+                  <form onSubmit={manualDataForm.handleSubmit(handleManualDataSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* PM2.5 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="pm25"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">PM2.5</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter PM2.5" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* PM10 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="pm10"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">PM10</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter PM10" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* NO */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="no"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">NO</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter NO" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* NO2 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="no2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">NO₂</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter NO₂" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* NOx */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="nox"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">NOx</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter NOx" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* NH3 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="nh3"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">NH₃</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter NH₃" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* SO2 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="so2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">SO₂</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter SO₂" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* CO */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="co"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">CO</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter CO" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* O3 */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="o3"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">O₃</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter O₃" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Benzene */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="benzene"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Benzene</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Benzene" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Humidity */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="humidity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Humidity</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Humidity" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Wind Speed */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="wind_speed"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Wind Speed</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Wind Speed" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Wind Direction */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="wind_direction"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Wind Direction</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Wind Direction" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Solar Radiation */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="solar_radiation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Solar Radiation</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Solar Radiation" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Rainfall */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="rainfall"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Rainfall</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Rainfall" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Temperature */}
+                      <FormField
+                        control={manualDataForm.control}
+                        name="temperature"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Temperature</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter Temperature" 
+                                className="bg-white/5 border-white/10 text-white"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="flex gap-4 justify-center mt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-40"
+                        onClick={loadDataForCurrentLocation}
+                        disabled={isLoading}
+                      >
+                        Use Local Data
+                      </Button>
+                      
+                      <Button
+                        type="submit"
+                        className="w-40 bg-blue-500 hover:bg-blue-600"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Submit Data
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="analysis-config">
               <Form {...analysisForm}>
-                <Card className="bg-white/10 border-white/10 p-6 mt-8">
+                <Card className="bg-white/10 border-white/10 p-6 mt-4 mb-6">
                   <h3 className="text-lg font-medium text-white mb-4">Analysis Configuration</h3>
                   
                   <FormField
@@ -593,6 +1127,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                       </FormItem>
                     )}
                   />
+                  
+                  <div className="mt-6">
+                    <Button 
+                      onClick={performAnalysis}
+                      className="w-full bg-blue-500 hover:bg-blue-600 mt-6 py-6 text-lg"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="mr-2 h-4 w-4" />
+                          Run Air Quality Analysis
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </Card>
               </Form>
             </TabsContent>
@@ -633,7 +1187,95 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                   </div>
                   
                   <Card className="bg-white/10 border-white/10 p-6">
-                    <h3 className="text-lg font-medium text-white mb-4">Metrics Analysis</h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium text-white">Metrics Analysis</h3>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant={chartType === 'bar' ? 'default' : 'outline'} 
+                          size="sm"
+                          onClick={() => setChartType('bar')}
+                        >
+                          <BarChart4 className="h-4 w-4 mr-1" />
+                          Bar
+                        </Button>
+                        <Button 
+                          variant={chartType === 'line' ? 'default' : 'outline'} 
+                          size="sm"
+                          onClick={() => setChartType('line')}
+                        >
+                          <Activity className="h-4 w-4 mr-1" />
+                          Line
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="h-80 w-full mt-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {chartType === 'bar' ? (
+                          <BarChart data={analysisResult.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#8884d8" 
+                              fontSize={12}
+                              angle={-45}
+                              textAnchor="end"
+                              height={70}
+                            />
+                            <YAxis stroke="#8884d8" />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="custom-tooltip bg-white/10 border border-white/20 p-3 rounded-md">
+                                      <p className="text-blue-300">{`${payload[0].payload.name}`}</p>
+                                      <p className="text-white">{`Value: ${payload[0].value} ${payload[0].payload.unit}`}</p>
+                                      <p className="text-orange-400">{`Impact: ${payload[0].payload.impact}%`}</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Bar dataKey="value" fill="#8884d8" name="Value" />
+                            <Bar dataKey="impact" fill="#82ca9d" name="Impact %" />
+                          </BarChart>
+                        ) : (
+                          <LineChart data={analysisResult.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#8884d8" 
+                              fontSize={12}
+                              angle={-45}
+                              textAnchor="end"
+                              height={70}
+                            />
+                            <YAxis stroke="#8884d8" />
+                            <Tooltip 
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="custom-tooltip bg-white/10 border border-white/20 p-3 rounded-md">
+                                      <p className="text-blue-300">{`${payload[0].payload.name}`}</p>
+                                      <p className="text-white">{`Value: ${payload[0].value} ${payload[0].payload.unit}`}</p>
+                                      <p className="text-orange-400">{`Impact: ${payload[0].payload.impact}%`}</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Line type="monotone" dataKey="value" stroke="#8884d8" name="Value" />
+                            <Line type="monotone" dataKey="impact" stroke="#82ca9d" name="Impact %" />
+                          </LineChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                  
+                  <Card className="bg-white/10 border-white/10 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">Metrics Details</h3>
                     
                     <div className="overflow-x-auto">
                       <Table className="border border-white/10 rounded-lg">
@@ -699,6 +1341,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                       </div>
                     </div>
                   </Card>
+                  
+                  <Card className="bg-white/10 border-white/10 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">All Records Used For Analysis</h3>
+                    
+                    <div className="overflow-x-auto">
+                      <Table className="border border-white/10 rounded-lg">
+                        <TableHeader className="bg-white/5">
+                          <TableRow>
+                            <TableHead className="text-blue-300">#</TableHead>
+                            <TableHead className="text-blue-300">Source</TableHead>
+                            <TableHead className="text-blue-300">PM2.5</TableHead>
+                            <TableHead className="text-blue-300">PM10</TableHead>
+                            <TableHead className="text-blue-300">O3</TableHead>
+                            <TableHead className="text-blue-300">NO2</TableHead>
+                            <TableHead className="text-blue-300">CO</TableHead>
+                            <TableHead className="text-blue-300">Similarity</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {analysisResult.similarities.slice(0, 10).map((item, index) => (
+                            <TableRow key={index} className="border-white/5">
+                              <TableCell className="text-white">{index + 1}</TableCell>
+                              <TableCell className="text-white">{item.data.data_source || "Unknown"}</TableCell>
+                              <TableCell className="text-white">{item.data.pm25 || "N/A"}</TableCell>
+                              <TableCell className="text-white">{item.data.pm10 || "N/A"}</TableCell>
+                              <TableCell className="text-white">{item.data.o3 || "N/A"}</TableCell>
+                              <TableCell className="text-white">{item.data.no2 || "N/A"}</TableCell>
+                              <TableCell className="text-white">{item.data.co || "N/A"}</TableCell>
+                              <TableCell className="text-green-400">{Math.round(item.similarity * 100)}%</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
                 </div>
               ) : (
                 <div className="text-center py-10">
@@ -718,3 +1395,4 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
 };
 
 export default AdminPanel;
+
