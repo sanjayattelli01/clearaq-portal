@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -232,12 +233,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     setIsLoading(true);
     
     try {
+      // Fix: Make sure we're providing all required fields with non-null values
       const { data, error } = await supabase
         .from('air_quality_data')
-        .insert([{
-          ...values,
+        .insert({
+          pm25: values.pm25,
+          pm10: values.pm10,
+          no: values.no,
+          no2: values.no2,
+          nox: values.nox,
+          nh3: values.nh3,
+          so2: values.so2,
+          co: values.co,
+          o3: values.o3,
+          benzene: values.benzene,
+          humidity: values.humidity,
+          wind_speed: values.wind_speed,
+          wind_direction: values.wind_direction,
+          solar_radiation: values.solar_radiation,
+          rainfall: values.rainfall,
+          air_temperature: values.air_temperature,
+          efficiency: values.efficiency,
+          efficiency_category: values.efficiency_category,
           data_source: 'manual'
-        }])
+        })
         .select();
       
       if (error) throw error;
@@ -821,7 +840,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                         <h4 className="text-blue-300 text-sm font-medium mb-2">Top Contributing Factors</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           {Object.entries(analysisResult.metrics)
-                            .sort(([, a], [, b]) => Number(b) - Number(a))
+                            .sort(([, a], [, b]) => (Number(b) as number) - (Number(a) as number))
                             .slice(0, 4)
                             .map(([key, value]) => {
                               const metricInfo = METRICS_INFO.find(m => m.key === key);
