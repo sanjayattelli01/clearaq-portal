@@ -43,6 +43,16 @@ interface AQIAnalysisResultProps {
   };
 }
 
+// Define a more appropriate type for thresholds
+type ThresholdLevel = {
+  range: [number, number];
+  label: string;
+};
+
+type MetricThresholds = {
+  [key: string]: ThresholdLevel[];
+};
+
 const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
   const getAQIColor = (score: number): string => {
     if (score <= 50) return "bg-green-500";
@@ -200,21 +210,48 @@ const getMetricImpact = (metric: string, value: number): JSX.Element => {
   let impact = "Neutral";
   let color = "text-blue-300";
   
-  // Define thresholds for different metrics
-  const thresholds: Record<string, [number, number][]> = {
-    pm25: [[0, 12, "Low"], [12.1, 35.4, "Moderate"], [35.5, 500, "High"]],
-    pm10: [[0, 54, "Low"], [55, 154, "Moderate"], [155, 500, "High"]],
-    o3: [[0, 0.054, "Low"], [0.055, 0.07, "Moderate"], [0.071, 0.5, "High"]],
-    no2: [[0, 0.053, "Low"], [0.054, 0.1, "Moderate"], [0.101, 2, "High"]],
-    so2: [[0, 0.035, "Low"], [0.036, 0.075, "Moderate"], [0.076, 1, "High"]],
-    co: [[0, 4.4, "Low"], [4.5, 9.4, "Moderate"], [9.5, 50, "High"]]
+  // Define thresholds for different metrics using the new type
+  const thresholds: MetricThresholds = {
+    pm25: [
+      { range: [0, 12], label: "Low" }, 
+      { range: [12.1, 35.4], label: "Moderate" }, 
+      { range: [35.5, 500], label: "High" }
+    ],
+    pm10: [
+      { range: [0, 54], label: "Low" }, 
+      { range: [55, 154], label: "Moderate" }, 
+      { range: [155, 500], label: "High" }
+    ],
+    o3: [
+      { range: [0, 0.054], label: "Low" }, 
+      { range: [0.055, 0.07], label: "Moderate" }, 
+      { range: [0.071, 0.5], label: "High" }
+    ],
+    no2: [
+      { range: [0, 0.053], label: "Low" }, 
+      { range: [0.054, 0.1], label: "Moderate" }, 
+      { range: [0.101, 2], label: "High" }
+    ],
+    so2: [
+      { range: [0, 0.035], label: "Low" }, 
+      { range: [0.036, 0.075], label: "Moderate" }, 
+      { range: [0.076, 1], label: "High" }
+    ],
+    co: [
+      { range: [0, 4.4], label: "Low" }, 
+      { range: [4.5, 9.4], label: "Moderate" }, 
+      { range: [9.5, 50], label: "High" }
+    ]
   };
   
   // Set impact based on thresholds if available for the metric
   if (thresholds[metric]) {
-    for (const [min, max, level] of thresholds[metric]) {
+    for (const threshold of thresholds[metric]) {
+      const [min, max] = threshold.range;
+      const level = threshold.label;
+      
       if (value >= min && value <= max) {
-        impact = level as string;
+        impact = level;
         
         if (impact === "Low") {
           color = "text-green-500";
@@ -233,3 +270,4 @@ const getMetricImpact = (metric: string, value: number): JSX.Element => {
 };
 
 export default AQIAnalysisResult;
+
