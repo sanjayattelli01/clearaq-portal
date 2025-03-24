@@ -40,7 +40,7 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-4">
           <BarChart className="h-4 w-4 text-blue-400" />
@@ -62,7 +62,9 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
                     {prediction.Model}
                   </TableCell>
                   <TableCell>
-                    {prediction["Predicted Efficiency Category"]}
+                    <span className={getPredictionColor(prediction["Predicted Efficiency Category"])}>
+                      {prediction["Predicted Efficiency Category"]}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
@@ -116,13 +118,25 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
       <div className="p-4 border border-white/10 rounded-md bg-white/5">
         <div className="flex items-center gap-2 mb-2">
           <Award className="h-5 w-5 text-yellow-500" />
-          <h3 className="text-lg font-medium text-white">Recommendation</h3>
+          <h3 className="text-lg font-medium text-white">Final Recommendation</h3>
         </div>
         
         <p className="text-blue-300">{recommendation}</p>
       </div>
     </div>
   );
+};
+
+// Helper function to color code prediction categories
+const getPredictionColor = (category: string): string => {
+  if (category.toLowerCase().includes('high')) {
+    return 'text-green-500';
+  } else if (category.toLowerCase().includes('medium')) {
+    return 'text-yellow-500';
+  } else if (category.toLowerCase().includes('low')) {
+    return 'text-red-500';
+  }
+  return 'text-blue-300';
 };
 
 export default ModelPredictionsTable;

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { AlertCircle, ThumbsUp, ThumbsDown, BadgeInfo, Activity, BarChart } from "lucide-react";
+import { AlertCircle, ThumbsUp, ThumbsDown, BadgeInfo, Activity, BarChart, Award } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -131,6 +131,10 @@ const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
       
       {result.apiResponse && (
         <Card className="p-6 glass-card border-white/10">
+          <div className="flex items-center gap-3 mb-4">
+            <Award className="h-5 w-5 text-yellow-500" />
+            <h3 className="text-xl font-semibold text-white">AI Model Analysis</h3>
+          </div>
           <ModelPredictionsTable 
             predictions={result.apiResponse.predictions}
             metrics={result.apiResponse.metrics}
@@ -270,4 +274,3 @@ const getMetricImpact = (metric: string, value: number): JSX.Element => {
 };
 
 export default AQIAnalysisResult;
-
