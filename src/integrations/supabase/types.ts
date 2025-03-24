@@ -9,78 +9,7 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      air_quality_data: {
-        Row: {
-          air_temperature: number
-          benzene: number
-          co: number
-          created_at: string
-          data_source: string | null
-          efficiency: number
-          efficiency_category: string
-          humidity: number
-          id: string
-          nh3: number
-          no: number
-          no2: number
-          nox: number
-          o3: number
-          pm10: number
-          pm25: number
-          rainfall: number
-          so2: number
-          solar_radiation: number
-          wind_direction: number
-          wind_speed: number
-        }
-        Insert: {
-          air_temperature: number
-          benzene: number
-          co: number
-          created_at?: string
-          data_source?: string | null
-          efficiency: number
-          efficiency_category: string
-          humidity: number
-          id?: string
-          nh3: number
-          no: number
-          no2: number
-          nox: number
-          o3: number
-          pm10: number
-          pm25: number
-          rainfall: number
-          so2: number
-          solar_radiation: number
-          wind_direction: number
-          wind_speed: number
-        }
-        Update: {
-          air_temperature?: number
-          benzene?: number
-          co?: number
-          created_at?: string
-          data_source?: string | null
-          efficiency?: number
-          efficiency_category?: string
-          humidity?: number
-          id?: string
-          nh3?: number
-          no?: number
-          no2?: number
-          nox?: number
-          o3?: number
-          pm10?: number
-          pm25?: number
-          rainfall?: number
-          so2?: number
-          solar_radiation?: number
-          wind_direction?: number
-          wind_speed?: number
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
