@@ -150,27 +150,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const performAnalysis = async () => {
     setIsLoading(true);
     
-    // Extract features in correct order
     const features = [
-      formData.pm25,
-      formData.pm10,
-      formData.no,
-      formData.no2,
-      formData.nox,
-      formData.nh3,
-      formData.so2,
-      formData.co,
-      formData.o3,
-      formData.benzene,
-      formData.humidity,
-      formData.wind_speed,
-      formData.wind_direction,
-      formData.solar_radiation,
-      formData.rainfall,
-      formData.air_temperature
+      formData.pm25 || 0,
+      formData.pm10 || 0,
+      formData.no || 0,
+      formData.no2 || 0,
+      formData.nox || 0,
+      formData.nh3 || 0,
+      formData.so2 || 0,
+      formData.co || 0,
+      formData.o3 || 0,
+      formData.benzene || 0,
+      formData.humidity || 0,
+      formData.wind_speed || 0,
+      formData.wind_direction || 0,
+      formData.solar_radiation || 0,
+      formData.rainfall || 0,
+      formData.air_temperature || 0
     ];
     
-    // Call prediction API
     const apiResult = await getPredictionFromAPI(features);
     
     if (!apiResult) {
@@ -178,7 +176,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       return;
     }
     
-    // Create result object with API response
     const result = {
       metrics: formData,
       apiResponse: apiResult
