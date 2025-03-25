@@ -6,8 +6,6 @@ import ModelPredictionsTable from "./ModelPredictionsTable";
 
 interface AQIAnalysisResultProps {
   result: {
-    aqiScore?: number;
-    classification?: { label: string; color: string };
     metrics?: Record<string, number>;
     apiResponse?: {
       predictions: {

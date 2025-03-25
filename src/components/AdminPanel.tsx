@@ -57,7 +57,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<string>("data-entry");
   const [analysisPerformed, setAnalysisPerformed] = useState<boolean>(false);
-  const [apiResponse, setApiResponse] = useState<any | null>(null);
 
   const loadDataForCurrentLocation = async () => {
     setIsLoading(true);
@@ -119,24 +118,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     setIsLoading(true);
     
     try {
+      const inputData = {
+        features: features
+      };
+      
+      console.log("Sending data to API:", inputData);
+      
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ features })
+        body: JSON.stringify(inputData)
       });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
       
       const result = await response.json();
       console.log("API Response:", result);
       
-      if (result.error) {
-        toast.error("API Error: " + result.error);
-        return null;
-      }
-      
       return result;
     } catch (error) {
       console.error("API request failed:", error);
-      toast.error("Failed to connect to prediction API");
+      toast.error("Failed to connect to prediction API. Please try again.");
       return null;
     } finally {
       setIsLoading(false);
