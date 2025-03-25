@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -69,7 +68,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       
       setAirQualityData(data);
       
-      // Pre-fill form data with current values
       const initialFormData: Record<string, number> = {};
       Object.keys(data.metrics).forEach(key => {
         initialFormData[key] = data.metrics[key].value;
@@ -95,7 +93,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         .then(data => {
           setAirQualityData(data);
           
-          // Pre-fill form data
           const initialFormData: Record<string, number> = {};
           Object.keys(data.metrics).forEach(key => {
             initialFormData[key] = data.metrics[key].value;
@@ -171,14 +168,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     
     // Call prediction API
     const apiResult = await getPredictionFromAPI(features);
-    setApiResponse(apiResult);
     
-    // Simulate AQI calculation
-    const aqiScore = calculateAQIScore(formData);
+    if (!apiResult) {
+      setIsLoading(false);
+      return;
+    }
     
+    // Create result object with API response
     const result = {
-      aqiScore,
-      classification: getAQIClassification(aqiScore),
       metrics: formData,
       apiResponse: apiResult
     };
@@ -191,9 +188,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     setIsLoading(false);
   };
 
-  // Calculate AQI score based on key pollutants
   const calculateAQIScore = (metrics: Record<string, number>): number => {
-    // Weights for the main pollutants in AQI calculation
     const weights = {
       pm25: 0.3,
       pm10: 0.2,
@@ -203,29 +198,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       co: 0.15
     };
     
-    // Base score from current values
     let score = 0;
     let totalWeight = 0;
     
     for (const [key, weight] of Object.entries(weights)) {
       if (metrics[key as keyof typeof metrics] !== undefined) {
-        // Normalize to 0-500 scale based on typical AQI ranges
         const normalizedValue = normalizeForAQI(key, metrics[key as keyof typeof metrics]);
         score += normalizedValue * weight;
         totalWeight += weight;
       }
     }
     
-    // Final score
     const finalScore = totalWeight > 0 ? (score / totalWeight) : 0;
     
-    // Ensure score is in 0-500 range
     return Math.min(500, Math.max(0, Math.round(finalScore)));
   };
 
-  // Normalize pollutant values to AQI scale
   const normalizeForAQI = (pollutant: string, value: number): number => {
-    // Simplified normalization based on EPA ranges
     const ranges: Record<string, number[][]> = {
       pm25: [[0, 12, 0, 50], [12.1, 35.4, 51, 100], [35.5, 55.4, 101, 150], [55.5, 150.4, 151, 200], [150.5, 250.4, 201, 300], [250.5, 500, 301, 500]],
       pm10: [[0, 54, 0, 50], [55, 154, 51, 100], [155, 254, 101, 150], [255, 354, 151, 200], [355, 424, 201, 300], [425, 604, 301, 500]],
@@ -236,17 +225,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
     };
     
     const pollutantRanges = ranges[pollutant];
-    if (!pollutantRanges) return value; // If no mapping, return original
+    if (!pollutantRanges) return value;
     
-    // Find the correct range
     for (const [cLow, cHigh, aqiLow, aqiHigh] of pollutantRanges) {
       if (value >= cLow && value <= cHigh) {
-        // Linear interpolation
         return ((value - cLow) / (cHigh - cLow)) * (aqiHigh - aqiLow) + aqiLow;
       }
     }
     
-    return 0; // Default if no range matches
+    return 0;
   };
 
   const getAQIClassification = (score: number): { label: string, color: string } => {
