@@ -25,12 +25,11 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AQIAnalysisResult from "./AQIAnalysisResult";
 import AdminHeader from "./AdminHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AdminPanelProps {
   onLogout: () => void;
 }
-
-const API_URL = "https://air-anlalysis-models.onrender.com/predict";
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null);
@@ -124,20 +123,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       
       console.log("Sending data to API:", inputData);
       
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(inputData)
+      const { data, error } = await supabase.functions.invoke('air-quality-predict', {
+        body: inputData
       });
       
-      if (!response.ok) {
-        throw new Error(`API request failed with status: ${response.status}`);
+      if (error) {
+        throw new Error(`API request failed: ${error.message}`);
       }
       
-      const result = await response.json();
-      console.log("API Response:", result);
+      console.log("API Response:", data);
       
-      return result;
+      return data;
     } catch (error) {
       console.error("API request failed:", error);
       toast.error("Failed to connect to prediction API. Please try again.");

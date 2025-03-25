@@ -1,53 +1,59 @@
 
 import React from "react";
-import { Award } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 import ModelPredictionsTable from "./ModelPredictionsTable";
 
 interface AQIAnalysisResultProps {
   result: {
-    metrics?: Record<string, number>;
-    apiResponse?: {
-      predictions: {
+    metrics: Record<string, number>;
+    apiResponse: {
+      predictions: Array<{
         Model: string;
         "Predicted Efficiency Category": string;
-      }[];
-      metrics: {
-        [key: string]: {
-          Accuracy: number;
-          Precision: number;
-          Recall: number;
-          "F1-Score": number;
-        };
-      };
+      }>;
+      metrics: Record<string, {
+        Accuracy: number;
+        Precision: number;
+        Recall: number;
+        "F1-Score": number;
+      }>;
       final_recommendation: string;
     };
   };
 }
 
 const AQIAnalysisResult: React.FC<AQIAnalysisResultProps> = ({ result }) => {
-  // Check if we have API response data
-  if (!result.apiResponse) {
-    return (
-      <div className="text-center py-10 text-blue-300">
-        No analysis results available. Please perform an analysis first.
-      </div>
-    );
+  if (!result || !result.apiResponse) {
+    return <div>No analysis data available</div>;
   }
 
+  const { predictions, metrics, final_recommendation } = result.apiResponse;
+
   return (
-    <Card className="p-6 glass-card border-white/10">
-      <div className="flex items-center gap-3 mb-6">
-        <Award className="h-5 w-5 text-yellow-500" />
-        <h3 className="text-xl font-semibold text-white">Model Analysis Results</h3>
-      </div>
-      
-      <ModelPredictionsTable 
-        predictions={result.apiResponse.predictions}
-        metrics={result.apiResponse.metrics}
-        recommendation={result.apiResponse.final_recommendation}
-      />
-    </Card>
+    <div className="space-y-6 animate-fade-in">
+      <Card className="p-4 bg-white/5 border-white/10">
+        <h3 className="text-lg font-medium text-white mb-4">Machine Learning Analysis Results</h3>
+        
+        <Alert className="bg-blue-500/10 border-blue-500/30 mb-6">
+          <InfoIcon className="h-4 w-4 text-blue-400" />
+          <AlertTitle className="text-white">Analysis Complete</AlertTitle>
+          <AlertDescription className="text-blue-300">
+            Multiple machine learning models have analyzed your air quality data to determine efficiency categories and provide recommendations.
+          </AlertDescription>
+        </Alert>
+        
+        <Separator className="my-4 bg-white/10" />
+        
+        <ModelPredictionsTable 
+          predictions={predictions} 
+          metrics={metrics}
+          recommendation={final_recommendation}
+        />
+      </Card>
+    </div>
   );
 };
 
