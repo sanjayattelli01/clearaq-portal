@@ -1,14 +1,12 @@
-
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, ChevronDown, ChevronUp, BarChart } from "lucide-react";
 import ModelPredictionsTable from "./ModelPredictionsTable";
 import ModelPerformanceCharts from "./ModelPerformanceCharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface AQIAnalysisResultProps {
   result: {
