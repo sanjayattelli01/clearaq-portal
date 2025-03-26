@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -337,6 +336,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                 <TabsContent value="region">
                   <div className="flex flex-col gap-4">
                     <RegionSelector
+                      onRegionSelected={handleRegionSearch}
                       onCountryChange={setSelectedCountry}
                       onStateChange={setSelectedState}
                       onDistrictChange={setSelectedDistrict}
@@ -344,14 +344,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
                       selectedState={selectedState}
                       selectedDistrict={selectedDistrict}
                     />
-                    <Button 
-                      onClick={handleRegionSearch} 
-                      disabled={isLoading || !selectedCountry}
-                      className="bg-blue-500 hover:bg-blue-600"
-                    >
-                      <Search className="mr-2 h-4 w-4" />
-                      Search Region
-                    </Button>
                   </div>
                 </TabsContent>
                 

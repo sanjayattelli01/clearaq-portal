@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   BarChart, 
   Bar, 
@@ -23,15 +23,10 @@ import {
   Cell
 } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { X, BarChart as BarChartIcon, PieChart, Activity } from 'lucide-react';
+import { BarChart as BarChartIcon, PieChart, Activity, ArrowDown, ArrowUp, TrendingUp } from 'lucide-react';
+
+type MetricCategory = 'higherBetter' | 'lowerBetter';
 
 interface ModelPerformanceChartsProps {
   metrics: Record<string, Record<string, number>>;
@@ -56,7 +51,7 @@ const DEFAULT_COLORS = [
   '#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899', '#6366f1'
 ];
 
-const METRIC_CATEGORIES = {
+const METRIC_CATEGORIES: Record<MetricCategory, string[]> = {
   higherBetter: [
     'Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC', 'R²', 'R² Score',
     'Balanced Accuracy', 'Cohen\'s Kappa', 'Gini Coefficient'
@@ -99,10 +94,8 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return Array.from(metricSet);
   }, [metrics]);
   
-  const [selectedModel, setSelectedModel] = useState<string>(modelNames[0] || '');
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
-    allMetricNames.slice(0, 4) // Default to first 4 metrics
-  );
+  // Always use enhanced metrics
+  const manipulatedMetrics = metrics;
   
   const getComparisonData = (metricKeys: string[]) => {
     return modelNames.map(model => {
@@ -127,6 +120,52 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
       value: value !== undefined ? value : 0,
       fullMark: METRIC_CATEGORIES.higherBetter.includes(metric) ? 1 : 0.5
     }));
+  };
+  
+  const getFeatureEfficiencyData = () => {
+    // Get the model with highest average metrics
+    const bestModel = Object.entries(metrics).reduce(
+      (best, [model, modelMetrics]) => {
+        const avgMetric = Object.entries(modelMetrics).reduce(
+          (sum, [metricName, value]) => {
+            // For higher is better metrics, add directly
+            // For lower is better metrics, add inverted (1-value)
+            if (METRIC_CATEGORIES.higherBetter.includes(metricName)) {
+              return sum + value;
+            } else if (METRIC_CATEGORIES.lowerBetter.includes(metricName)) {
+              return sum + (1 - value);
+            }
+            return sum;
+          }, 0
+        ) / Object.keys(modelMetrics).length;
+        
+        if (avgMetric > best.avgMetric) {
+          return { model, avgMetric };
+        }
+        return best;
+      }, { model: '', avgMetric: 0 }
+    ).model;
+    
+    // Return feature efficiency categories for the best model
+    return Object.entries(metrics[bestModel] || {}).map(([feature, value]) => {
+      let category;
+      if (METRIC_CATEGORIES.higherBetter.includes(feature)) {
+        if (value >= 0.8) category = "High Efficiency";
+        else if (value >= 0.6) category = "Medium Efficiency";
+        else category = "Low Efficiency";
+      } else {
+        if (value <= 0.1) category = "High Efficiency";
+        else if (value <= 0.2) category = "Medium Efficiency";
+        else category = "Low Efficiency";
+      }
+      
+      return {
+        feature,
+        value,
+        category,
+        isHigherBetter: METRIC_CATEGORIES.higherBetter.includes(feature)
+      };
+    });
   };
   
   const getHeatmapData = () => {
@@ -178,18 +217,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return value.toFixed(3);
   };
   
-  const getAxisDomain = (metric: string) => {
-    if (METRIC_CATEGORIES.higherBetter.includes(metric)) {
-      return [0, 1];
-    }
-    
-    if (METRIC_CATEGORIES.lowerBetter.includes(metric)) {
-      return [0, 0.5]; // Adjust as needed
-    }
-    
-    return [0, 'auto'];
-  };
-  
   const getModelColor = (modelName: string, index: number) => {
     return MODEL_COLORS[modelName as keyof typeof MODEL_COLORS] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
   };
@@ -198,139 +225,279 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return METRIC_COLORS[metricName as keyof typeof METRIC_COLORS] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
   };
   
+  const sortedMetrics = allMetricNames.sort((a, b) => {
+    const metricOrder = [
+      "Accuracy", "Precision", "Recall", "F1-Score", 
+      "ROC-AUC", "R²", "MAE", "MSE", "RMSE", "Log Loss"
+    ];
+    const indexA = metricOrder.indexOf(a);
+    const indexB = metricOrder.indexOf(b);
+    
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+  
+  const featureEfficiencyData = getFeatureEfficiencyData();
+  
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="comparison" className="w-full mt-4">
-        <TabsList className="grid grid-cols-3 mb-6">
-          <TabsTrigger value="comparison" className="flex items-center gap-2">
-            <BarChartIcon className="h-4 w-4" />
-            Comparison Charts
-          </TabsTrigger>
-          <TabsTrigger value="radar" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Radar Charts
-          </TabsTrigger>
-          <TabsTrigger value="heatmap" className="flex items-center gap-2">
-            <PieChart className="h-4 w-4" />
-            Metrics Heatmap
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="comparison">
-          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-xl text-white">
-                Comprehensive Model Performance Metrics
-                <div className="flex gap-2">
-                  <Select
-                    value={selectedMetrics.join(',')}
-                    onValueChange={(value) => setSelectedMetrics(value.split(','))}
-                  >
-                    <SelectTrigger className="w-44 text-xs bg-black/30 border-white/10">
-                      <SelectValue placeholder="Select metrics" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black/80 border-white/10 text-white">
-                      <div className="grid grid-cols-2 gap-2 p-2">
-                        {allMetricNames.map((metric) => (
-                          <div key={metric} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id={`metric-${metric}`}
-                              checked={selectedMetrics.includes(metric)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedMetrics([...selectedMetrics, metric]);
-                                } else {
-                                  setSelectedMetrics(selectedMetrics.filter(m => m !== metric));
-                                }
-                              }}
-                              className="h-4 w-4"
-                            />
-                            <Label htmlFor={`metric-${metric}`} className="text-xs">{metric}</Label>
-                          </div>
-                        ))}
+    <div className="space-y-8">
+      {/* Comprehensive Model Performance Metrics */}
+      <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl text-white">
+            <BarChartIcon className="mr-2 h-5 w-5 text-blue-400" />
+            Comprehensive Model Performance Metrics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={getComparisonData(allMetricNames)}
+                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis 
+                  dataKey="model" 
+                  tick={{ fill: '#fff' }} 
+                  angle={-45} 
+                  textAnchor="end"
+                  height={70}
+                />
+                <YAxis 
+                  tick={{ fill: '#fff' }} 
+                  domain={[0, 1]}
+                  tickFormatter={(value) => (value * 100) + '%'}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
+                  formatter={(value: number, name: string) => {
+                    if (METRIC_CATEGORIES.higherBetter.includes(name)) {
+                      return [(value * 100).toFixed(2) + '%', name];
+                    }
+                    return [value.toFixed(4), name];
+                  }}
+                />
+                <Legend wrapperStyle={{ bottom: -10 }} />
+                {allMetricNames.map((metric, index) => (
+                  <Bar 
+                    key={metric} 
+                    dataKey={metric} 
+                    fill={getMetricColor(metric, index)} 
+                    name={metric}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Performance Metrics Heatmap */}
+      <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl text-white">
+            <PieChart className="mr-2 h-5 w-5 text-blue-400" />
+            Performance Metrics Heatmap
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max border-collapse">
+              <thead>
+                <tr>
+                  <th className="p-2 border-r border-b border-white/10 text-left text-white">Models</th>
+                  {sortedMetrics.map(metric => (
+                    <th 
+                      key={metric} 
+                      className="p-2 border-r border-b border-white/10 text-white text-center whitespace-nowrap rotate-315 h-32"
+                      style={{ minWidth: '100px' }}
+                    >
+                      <div className="transform rotate-315 origin-bottom-left translate-y-8 -translate-x-2">
+                        {metric}
                       </div>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="w-full h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={getComparisonData(selectedMetrics)}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                    <XAxis 
-                      dataKey="model" 
-                      tick={{ fill: '#fff' }} 
-                      angle={-45} 
-                      textAnchor="end"
-                      height={70}
-                    />
-                    <YAxis 
-                      tick={{ fill: '#fff' }} 
-                      domain={[0, 1]}
-                      tickFormatter={(value) => (value * 100) + '%'}
-                    />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
-                      formatter={(value: number, name: string) => {
-                        if (METRIC_CATEGORIES.higherBetter.includes(name)) {
-                          return [(value * 100).toFixed(2) + '%', name];
-                        }
-                        return [value.toFixed(4), name];
-                      }}
-                    />
-                    <Legend wrapperStyle={{ bottom: -10 }} />
-                    {selectedMetrics.map((metric, index) => (
-                      <Bar 
-                        key={metric} 
-                        dataKey={metric} 
-                        fill={getMetricColor(metric, index)} 
-                        name={metric}
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="radar">
-          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {modelNames.map((model, idx) => (
+                  <tr key={model} className={idx % 2 === 0 ? 'bg-black/20' : ''}>
+                    <td className="p-2 border-r border-b border-white/10 text-left text-white font-medium">
+                      {model}
+                    </td>
+                    {sortedMetrics.map(metric => {
+                      const value = metrics[model][metric];
+                      const bgColor = getHeatmapColor(value, metric);
+                      
+                      return (
+                        <td 
+                          key={`${model}-${metric}`} 
+                          className="p-2 border-r border-b border-white/10 text-center"
+                          style={{ 
+                            backgroundColor: bgColor,
+                            color: '#fff',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {formatMetricValue(value, metric)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="mt-6 flex justify-center">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <div className="text-white text-xs">Better</div>
+              {['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#1e40af'].map((color, i) => (
+                <div 
+                  key={i} 
+                  className="w-10 h-4" 
+                  style={{ backgroundColor: color }}
+                ></div>
+              ))}
+              <div className="text-white text-xs">Worse</div>
+            </div>
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-400 text-center">
+            <p>Higher values are better for: Accuracy, Precision, Recall, F1-Score, ROC-AUC, R²</p>
+            <p>Lower values are better for: MAE, MSE, RMSE, Log Loss</p>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Model Performance Trends - Comparative Line Chart */}
+      <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl text-white">
+            <TrendingUp className="mr-2 h-5 w-5 text-blue-400" />
+            Model Performance Trends
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis 
+                  dataKey="metric" 
+                  type="category"
+                  tick={{ fill: '#fff' }}
+                  data={sortedMetrics.map(metric => ({ metric }))}
+                />
+                <YAxis 
+                  tick={{ fill: '#fff' }} 
+                  domain={[0, 1]}
+                  tickFormatter={(value) => (value * 100) + '%'}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
+                  formatter={(value: number, name: string) => {
+                    return [(value * 100).toFixed(2) + '%', name];
+                  }}
+                />
+                <Legend />
+                {modelNames.map((model, index) => (
+                  <Line
+                    key={model}
+                    type="monotone"
+                    dataKey={(entry) => {
+                      const metricName = entry.metric;
+                      return metrics[model][metricName] || 0;
+                    }}
+                    name={model}
+                    stroke={getModelColor(model, index)}
+                    activeDot={{ r: 8 }}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 text-center text-sm text-blue-300">
+            Comparative Model Performance Across All Metrics
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Feature Efficiency Categories */}
+      <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl text-white">
+            <Activity className="mr-2 h-5 w-5 text-blue-400" />
+            Feature Efficiency Categories
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-black/20">
+                  <th className="p-3 border-r border-b border-white/10 text-left text-white">Feature</th>
+                  <th className="p-3 border-r border-b border-white/10 text-center text-white">Value</th>
+                  <th className="p-3 border-r border-b border-white/10 text-center text-white">Scale</th>
+                  <th className="p-3 border-b border-white/10 text-center text-white">Efficiency Category</th>
+                </tr>
+              </thead>
+              <tbody>
+                {featureEfficiencyData.map((item, index) => (
+                  <tr key={item.feature} className={index % 2 === 0 ? 'bg-black/10' : ''}>
+                    <td className="p-3 border-r border-b border-white/10 text-left text-white font-medium">
+                      {item.feature}
+                    </td>
+                    <td className="p-3 border-r border-b border-white/10 text-center">
+                      {formatMetricValue(item.value, item.feature)}
+                    </td>
+                    <td className="p-3 border-r border-b border-white/10 text-center">
+                      {item.isHigherBetter ? (
+                        <ArrowUp className="inline h-4 w-4 text-green-500 mr-1" />
+                      ) : (
+                        <ArrowDown className="inline h-4 w-4 text-green-500 mr-1" />
+                      )}
+                      {item.isHigherBetter ? 'Higher is better' : 'Lower is better'}
+                    </td>
+                    <td className="p-3 border-b border-white/10 text-center">
+                      <span className={
+                        item.category === 'High Efficiency' ? 'text-green-500 font-bold' :
+                        item.category === 'Medium Efficiency' ? 'text-yellow-500 font-bold' :
+                        'text-red-500 font-bold'
+                      }>
+                        {item.category}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Individual Model Radar Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {modelNames.map((model, index) => (
+          <Card key={model} className="bg-black/40 backdrop-blur-sm border-white/10">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between text-xl text-white">
-                <div className="flex items-center gap-2">
-                  Model Performance Radar Charts
-                </div>
-                <Select
-                  value={selectedModel}
-                  onValueChange={setSelectedModel}
-                >
-                  <SelectTrigger className="w-44 text-xs bg-black/30 border-white/10">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-black/80 border-white/10 text-white">
-                    {modelNames.map((model) => (
-                      <SelectItem key={model} value={model} className="text-white hover:bg-white/10">
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <CardTitle className="text-lg text-white">
+                {model} Performance Radar
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="w-full h-[500px]">
+              <div className="w-full h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart 
                     outerRadius="75%" 
-                    data={getRadarData(selectedModel)}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    data={getRadarData(model)}
+                    margin={{ top: 10, right: 30, left: 30, bottom: 10 }}
                   >
                     <PolarGrid stroke="#444" />
                     <PolarAngleAxis 
@@ -346,109 +513,29 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
                       tickFormatter={(value) => value.toFixed(1)}
                     />
                     <Radar 
-                      name={selectedModel} 
+                      name={model} 
                       dataKey="value" 
-                      stroke={getModelColor(selectedModel, modelNames.indexOf(selectedModel))} 
-                      fill={getModelColor(selectedModel, modelNames.indexOf(selectedModel))} 
+                      stroke={getModelColor(model, index)} 
+                      fill={getModelColor(model, index)} 
                       fillOpacity={0.6}
                     />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
                       formatter={(value: number, name: string, entry: any) => {
                         const metricName = entry?.payload?.metric;
-                        if (METRIC_CATEGORIES.higherBetter.includes(metricName)) {
+                        if (metricName && METRIC_CATEGORIES.higherBetter.includes(metricName)) {
                           return [(value * 100).toFixed(2) + '%', metricName];
                         }
-                        return [value.toFixed(4), metricName];
+                        return [value.toFixed(4), metricName || ''];
                       }}
                     />
-                    <Legend />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
-              <h2 className="text-center mt-4 text-white text-xl font-bold">
-                {selectedModel} Performance Metrics
-              </h2>
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="heatmap">
-          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
-            <CardHeader>
-              <CardTitle className="text-xl text-white">Performance Metrics Heatmap</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-max border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="p-2 border-r border-b border-white/10 text-left text-white">Models</th>
-                      {allMetricNames.map(metric => (
-                        <th 
-                          key={metric} 
-                          className="p-2 border-r border-b border-white/10 text-white text-center whitespace-nowrap rotate-315 h-32"
-                          style={{ minWidth: '100px' }}
-                        >
-                          <div className="transform rotate-315 origin-bottom-left translate-y-8 -translate-x-2">
-                            {metric}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modelNames.map((model, idx) => (
-                      <tr key={model} className={idx % 2 === 0 ? 'bg-black/20' : ''}>
-                        <td className="p-2 border-r border-b border-white/10 text-left text-white font-medium">
-                          {model}
-                        </td>
-                        {allMetricNames.map(metric => {
-                          const value = metrics[model][metric];
-                          const bgColor = getHeatmapColor(value, metric);
-                          
-                          return (
-                            <td 
-                              key={`${model}-${metric}`} 
-                              className="p-2 border-r border-b border-white/10 text-center"
-                              style={{ 
-                                backgroundColor: bgColor,
-                                color: '#fff',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              {formatMetricValue(value, metric)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="mt-6 flex justify-center">
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <div className="text-white text-xs">Better</div>
-                  {['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#1e40af'].map((color, i) => (
-                    <div 
-                      key={i} 
-                      className="w-10 h-4" 
-                      style={{ backgroundColor: color }}
-                    ></div>
-                  ))}
-                  <div className="text-white text-xs">Worse</div>
-                </div>
-              </div>
-              
-              <div className="mt-4 text-xs text-gray-400 text-center">
-                <p>Higher values are better for: Accuracy, Precision, Recall, F1-Score, ROC-AUC, R²</p>
-                <p>Lower values are better for: MAE, MSE, RMSE, Log Loss</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        ))}
+      </div>
     </div>
   );
 };

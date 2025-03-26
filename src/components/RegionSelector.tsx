@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,12 +44,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   
   const [loading, setLoading] = useState<boolean>(false);
   
-  // Use either prop values or internal state
   const selectedCountry = propSelectedCountry !== undefined ? propSelectedCountry : internalSelectedCountry;
   const selectedState = propSelectedState !== undefined ? propSelectedState : internalSelectedState;
   const selectedDistrict = propSelectedDistrict !== undefined ? propSelectedDistrict : internalSelectedDistrict;
   
-  // Handle country change
   const handleCountryChange = (value: string) => {
     if (onCountryChange) {
       onCountryChange(value);
@@ -59,7 +56,6 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     }
   };
   
-  // Handle state change
   const handleStateChange = (value: string) => {
     if (onStateChange) {
       onStateChange(value);
@@ -68,7 +64,6 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     }
   };
   
-  // Handle district change
   const handleDistrictChange = (value: string) => {
     if (onDistrictChange) {
       onDistrictChange(value);
@@ -77,12 +72,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     }
   };
   
-  // Fetch countries on component mount
   useEffect(() => {
     loadCountries();
   }, []);
   
-  // Fetch states when country changes
   useEffect(() => {
     if (selectedCountry) {
       loadStates(selectedCountry);
@@ -96,7 +89,6 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     }
   }, [selectedCountry]);
   
-  // Fetch districts when state changes
   useEffect(() => {
     if (selectedCountry && selectedState) {
       loadDistricts(selectedCountry, selectedState);
