@@ -57,6 +57,23 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
     { model: "", accuracy: 0 }
   );
 
+  // Get all available metrics keys
+  const availableMetrics = new Set<string>();
+  Object.values(metrics).forEach(modelMetric => {
+    Object.keys(modelMetric).forEach(key => {
+      availableMetrics.add(key);
+    });
+  });
+
+  // Sort metrics in a logical order
+  const sortedMetrics = Array.from(availableMetrics).sort((a, b) => {
+    const metricOrder = [
+      "Accuracy", "Precision", "Recall", "F1-Score", 
+      "ROC-AUC", "R²", "MAE", "MSE", "RMSE", "Log Loss"
+    ];
+    return metricOrder.indexOf(a) - metricOrder.indexOf(b);
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -107,19 +124,9 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
             <TableHeader>
               <TableRow className="bg-white/5">
                 <TableHead className="text-white">Model</TableHead>
-                <TableHead className="text-white">Accuracy</TableHead>
-                <TableHead className="text-white">Precision</TableHead>
-                <TableHead className="text-white">Recall</TableHead>
-                <TableHead className="text-white">F1-Score</TableHead>
-                {Object.values(metrics)[0]["ROC-AUC"] !== undefined && (
-                  <TableHead className="text-white">ROC-AUC</TableHead>
-                )}
-                {Object.values(metrics)[0]["R²"] !== undefined && (
-                  <TableHead className="text-white">R²</TableHead>
-                )}
-                {Object.values(metrics)[0]["MAE"] !== undefined && (
-                  <TableHead className="text-white">MAE</TableHead>
-                )}
+                {sortedMetrics.map(metric => (
+                  <TableHead key={metric} className="text-white">{metric}</TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -133,33 +140,11 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
                     )}
                     {model}
                   </TableCell>
-                  <TableCell className={model === bestModel.model ? 'text-green-400 font-medium' : ''}>
-                    {(modelMetrics.Accuracy * 100).toFixed(2)}%
-                  </TableCell>
-                  <TableCell>
-                    {(modelMetrics.Precision * 100).toFixed(2)}%
-                  </TableCell>
-                  <TableCell>
-                    {(modelMetrics.Recall * 100).toFixed(2)}%
-                  </TableCell>
-                  <TableCell>
-                    {(modelMetrics["F1-Score"] * 100).toFixed(2)}%
-                  </TableCell>
-                  {modelMetrics["ROC-AUC"] !== undefined && (
-                    <TableCell>
-                      {(modelMetrics["ROC-AUC"] * 100).toFixed(2)}%
+                  {sortedMetrics.map(metric => (
+                    <TableCell key={`${model}-${metric}`} className={model === bestModel.model && metric === "Accuracy" ? 'text-green-400 font-medium' : ''}>
+                      {formatMetricValue(metric, modelMetrics[metric as keyof typeof modelMetrics])}
                     </TableCell>
-                  )}
-                  {modelMetrics["R²"] !== undefined && (
-                    <TableCell>
-                      {modelMetrics["R²"].toFixed(3)}
-                    </TableCell>
-                  )}
-                  {modelMetrics["MAE"] !== undefined && (
-                    <TableCell>
-                      {modelMetrics["MAE"].toFixed(3)}
-                    </TableCell>
-                  )}
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -201,6 +186,28 @@ const getPredictionColor = (category: string): string => {
     return 'text-red-500';
   }
   return 'text-blue-300';
+};
+
+// Helper function to format metric values appropriately
+const formatMetricValue = (metric: string, value: number | undefined): string => {
+  if (value === undefined) return 'N/A';
+  
+  switch (metric) {
+    case 'Accuracy':
+    case 'Precision':
+    case 'Recall':
+    case 'F1-Score':
+    case 'ROC-AUC':
+      return `${(value * 100).toFixed(2)}%`;
+    case 'R²':
+    case 'MAE':
+    case 'MSE':
+    case 'RMSE':
+    case 'Log Loss':
+      return value.toFixed(3);
+    default:
+      return value.toString();
+  }
 };
 
 export default ModelPredictionsTable;
