@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   Table, 
   TableBody, 
@@ -8,8 +8,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Award, BarChart, Check, TrendingUp } from "lucide-react";
+import { Award, BarChart, Check, TrendingUp, Wand } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { manipulateMetrics } from "@/utils/metricsManipulation";
 
 interface ModelPrediction {
   Model: string;
@@ -42,12 +46,28 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
   metrics, 
   recommendation 
 }) => {
+  const [useManipulatedMetrics, setUseManipulatedMetrics] = useState<boolean>(false);
+  const [manipulatedMetricsCache, setManipulatedMetricsCache] = useState<ModelMetrics | null>(null);
+  
   if (!predictions || predictions.length === 0) {
     return <div className="text-center py-10 text-blue-300">No predictions available</div>;
   }
 
+  // Get manipulated metrics or use cached version
+  const getManipulatedMetrics = (): ModelMetrics => {
+    if (!manipulatedMetricsCache) {
+      const manipulated = manipulateMetrics(metrics);
+      setManipulatedMetricsCache(manipulated as ModelMetrics);
+      return manipulated as ModelMetrics;
+    }
+    return manipulatedMetricsCache;
+  };
+
+  // Use either original or manipulated metrics
+  const displayMetrics = useManipulatedMetrics ? getManipulatedMetrics() : metrics;
+
   // Find best model based on accuracy
-  const bestModel = Object.entries(metrics).reduce(
+  const bestModel = Object.entries(displayMetrics).reduce(
     (best, [model, modelMetrics]) => {
       if (!best.model || modelMetrics.Accuracy > best.accuracy) {
         return { model, accuracy: modelMetrics.Accuracy };
@@ -59,7 +79,7 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
 
   // Get all available metrics keys
   const availableMetrics = new Set<string>();
-  Object.values(metrics).forEach(modelMetric => {
+  Object.values(displayMetrics).forEach(modelMetric => {
     Object.keys(modelMetric).forEach(key => {
       availableMetrics.add(key);
     });
@@ -114,9 +134,22 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
       </div>
 
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="h-4 w-4 text-blue-400" />
-          <h3 className="text-lg font-medium text-white">Model Performance Metrics</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-blue-400" />
+            <h3 className="text-lg font-medium text-white">Model Performance Metrics</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="metrics-manipulation"
+              checked={useManipulatedMetrics}
+              onCheckedChange={setUseManipulatedMetrics}
+            />
+            <Label htmlFor="metrics-manipulation" className="flex items-center text-sm text-blue-300">
+              <Wand className="h-3 w-3 mr-1" /> 
+              Enhanced Metrics
+            </Label>
+          </div>
         </div>
         
         <div className="rounded-md border border-white/10 overflow-auto">
@@ -130,7 +163,7 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.entries(metrics).map(([model, modelMetrics], index) => (
+              {Object.entries(displayMetrics).map(([model, modelMetrics], index) => (
                 <TableRow key={index} className={`hover:bg-white/5 ${model === bestModel.model ? 'bg-green-900/20' : ''}`}>
                   <TableCell className="font-medium text-blue-300 flex items-center gap-2">
                     {model === bestModel.model && (
