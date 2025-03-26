@@ -15,22 +15,67 @@ import { fetchCountries, fetchStates, fetchDistricts } from "@/utils/api";
 
 interface RegionSelectorProps {
   onRegionSelected: (country: string, state: string, district: string) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
+  // Add these new props to match what's being passed in AdminPanel
+  onCountryChange?: React.Dispatch<React.SetStateAction<string>>;
+  onStateChange?: React.Dispatch<React.SetStateAction<string>>;
+  onDistrictChange?: React.Dispatch<React.SetStateAction<string>>;
+  selectedCountry?: string;
+  selectedState?: string;
+  selectedDistrict?: string;
 }
 
 const RegionSelector: React.FC<RegionSelectorProps> = ({ 
   onRegionSelected, 
-  isLoading
+  isLoading = false,
+  onCountryChange,
+  onStateChange,
+  onDistrictChange,
+  selectedCountry: propSelectedCountry,
+  selectedState: propSelectedState,
+  selectedDistrict: propSelectedDistrict
 }) => {
   const [countries, setCountries] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
   
-  const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [selectedState, setSelectedState] = useState<string>("");
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
+  const [internalSelectedCountry, setInternalSelectedCountry] = useState<string>(propSelectedCountry || "");
+  const [internalSelectedState, setInternalSelectedState] = useState<string>(propSelectedState || "");
+  const [internalSelectedDistrict, setInternalSelectedDistrict] = useState<string>(propSelectedDistrict || "");
   
   const [loading, setLoading] = useState<boolean>(false);
+  
+  // Use either prop values or internal state
+  const selectedCountry = propSelectedCountry !== undefined ? propSelectedCountry : internalSelectedCountry;
+  const selectedState = propSelectedState !== undefined ? propSelectedState : internalSelectedState;
+  const selectedDistrict = propSelectedDistrict !== undefined ? propSelectedDistrict : internalSelectedDistrict;
+  
+  // Handle country change
+  const handleCountryChange = (value: string) => {
+    if (onCountryChange) {
+      onCountryChange(value);
+    } else {
+      setInternalSelectedCountry(value);
+    }
+  };
+  
+  // Handle state change
+  const handleStateChange = (value: string) => {
+    if (onStateChange) {
+      onStateChange(value);
+    } else {
+      setInternalSelectedState(value);
+    }
+  };
+  
+  // Handle district change
+  const handleDistrictChange = (value: string) => {
+    if (onDistrictChange) {
+      onDistrictChange(value);
+    } else {
+      setInternalSelectedDistrict(value);
+    }
+  };
   
   // Fetch countries on component mount
   useEffect(() => {
@@ -41,8 +86,12 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   useEffect(() => {
     if (selectedCountry) {
       loadStates(selectedCountry);
-      setSelectedState("");
-      setSelectedDistrict("");
+      if (!onStateChange) {
+        setInternalSelectedState("");
+      }
+      if (!onDistrictChange) {
+        setInternalSelectedDistrict("");
+      }
       setDistricts([]);
     }
   }, [selectedCountry]);
@@ -51,7 +100,9 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   useEffect(() => {
     if (selectedCountry && selectedState) {
       loadDistricts(selectedCountry, selectedState);
-      setSelectedDistrict("");
+      if (!onDistrictChange) {
+        setInternalSelectedDistrict("");
+      }
     }
   }, [selectedState]);
   
@@ -117,7 +168,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
             <div>
               <Select 
                 value={selectedCountry} 
-                onValueChange={setSelectedCountry}
+                onValueChange={handleCountryChange}
                 disabled={isLoading || loading}
               >
                 <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">
@@ -136,7 +187,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
             <div>
               <Select 
                 value={selectedState} 
-                onValueChange={setSelectedState}
+                onValueChange={handleStateChange}
                 disabled={isLoading || loading || !selectedCountry}
               >
                 <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">
@@ -155,7 +206,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
             <div>
               <Select 
                 value={selectedDistrict} 
-                onValueChange={setSelectedDistrict}
+                onValueChange={handleDistrictChange}
                 disabled={isLoading || loading || !selectedState}
               >
                 <SelectTrigger className="w-full backdrop-blur-sm bg-white/10 border-white/10 text-white h-9 text-xs">

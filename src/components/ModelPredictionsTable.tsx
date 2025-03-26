@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Table, 
@@ -20,24 +19,25 @@ interface ModelPrediction {
   "Predicted Efficiency Category": string;
 }
 
-interface ModelMetrics {
+export interface ModelMetrics {
   [key: string]: {
+    [key: string]: number;
     Accuracy: number;
     Precision: number;
     Recall: number;
     "F1-Score": number;
     "ROC-AUC"?: number;
     "R²"?: number;
-    "MAE"?: number;
-    "MSE"?: number;
-    "RMSE"?: number;
+    MAE?: number;
+    MSE?: number;
+    RMSE?: number;
     "Log Loss"?: number;
   };
 }
 
 interface ModelPredictionsTableProps {
   predictions: ModelPrediction[];
-  metrics: ModelMetrics;
+  metrics: Record<string, Record<string, number>>;
   recommendation: string;
 }
 
@@ -47,37 +47,33 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
   recommendation 
 }) => {
   const [useManipulatedMetrics, setUseManipulatedMetrics] = useState<boolean>(false);
-  const [manipulatedMetricsCache, setManipulatedMetricsCache] = useState<ModelMetrics | null>(null);
+  const [manipulatedMetricsCache, setManipulatedMetricsCache] = useState<Record<string, Record<string, number>> | null>(null);
   
   if (!predictions || predictions.length === 0) {
     return <div className="text-center py-10 text-blue-300">No predictions available</div>;
   }
 
-  // Get manipulated metrics or use cached version
-  const getManipulatedMetrics = (): ModelMetrics => {
+  const getManipulatedMetrics = (): Record<string, Record<string, number>> => {
     if (!manipulatedMetricsCache) {
       const manipulated = manipulateMetrics(metrics);
-      setManipulatedMetricsCache(manipulated as ModelMetrics);
-      return manipulated as ModelMetrics;
+      setManipulatedMetricsCache(manipulated);
+      return manipulated;
     }
     return manipulatedMetricsCache;
   };
 
-  // Use either original or manipulated metrics
   const displayMetrics = useManipulatedMetrics ? getManipulatedMetrics() : metrics;
 
-  // Find best model based on accuracy
   const bestModel = Object.entries(displayMetrics).reduce(
     (best, [model, modelMetrics]) => {
-      if (!best.model || modelMetrics.Accuracy > best.accuracy) {
-        return { model, accuracy: modelMetrics.Accuracy };
+      if (!best.model || (modelMetrics["Accuracy"] !== undefined && modelMetrics["Accuracy"] > best.accuracy)) {
+        return { model, accuracy: modelMetrics["Accuracy"] || 0 };
       }
       return best;
     },
     { model: "", accuracy: 0 }
   );
 
-  // Get all available metrics keys
   const availableMetrics = new Set<string>();
   Object.values(displayMetrics).forEach(modelMetric => {
     Object.keys(modelMetric).forEach(key => {
@@ -85,7 +81,6 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
     });
   });
 
-  // Sort metrics in a logical order
   const sortedMetrics = Array.from(availableMetrics).sort((a, b) => {
     const metricOrder = [
       "Accuracy", "Precision", "Recall", "F1-Score", 
@@ -175,7 +170,7 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
                   </TableCell>
                   {sortedMetrics.map(metric => (
                     <TableCell key={`${model}-${metric}`} className={model === bestModel.model && metric === "Accuracy" ? 'text-green-400 font-medium' : ''}>
-                      {formatMetricValue(metric, modelMetrics[metric as keyof typeof modelMetrics])}
+                      {formatMetricValue(metric, modelMetrics[metric])}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -209,7 +204,6 @@ const ModelPredictionsTable: React.FC<ModelPredictionsTableProps> = ({
   );
 };
 
-// Helper function to color code prediction categories
 const getPredictionColor = (category: string): string => {
   if (category.toLowerCase().includes('high')) {
     return 'text-green-500';
@@ -221,7 +215,6 @@ const getPredictionColor = (category: string): string => {
   return 'text-blue-300';
 };
 
-// Helper function to format metric values appropriately
 const formatMetricValue = (metric: string, value: number | undefined): string => {
   if (value === undefined) return 'N/A';
   

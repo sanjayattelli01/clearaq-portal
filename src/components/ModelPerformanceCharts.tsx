@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,17 +33,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { X, BarChart as BarChartIcon, PieChart, Activity } from 'lucide-react';
 
-interface ModelMetrics {
-  [key: string]: {
-    [key: string]: number;
-  };
-}
-
 interface ModelPerformanceChartsProps {
-  metrics: ModelMetrics;
+  metrics: Record<string, Record<string, number>>;
 }
 
-// Define color scheme for models
 const MODEL_COLORS = {
   'Random Forest': '#3b82f6', // Blue
   'KNN': '#ef4444', // Red 
@@ -64,7 +56,6 @@ const DEFAULT_COLORS = [
   '#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899', '#6366f1'
 ];
 
-// Categorize metrics into "higher is better" and "lower is better"
 const METRIC_CATEGORIES = {
   higherBetter: [
     'Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC', 'R²', 'R² Score',
@@ -95,7 +86,6 @@ const METRIC_COLORS = {
 };
 
 const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics }) => {
-  // Extract models and metrics for selection
   const modelNames = Object.keys(metrics);
   const allMetricNames = useMemo(() => {
     const metricSet = new Set<string>();
@@ -114,7 +104,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     allMetricNames.slice(0, 4) // Default to first 4 metrics
   );
   
-  // Function to prepare data for the comparison chart
   const getComparisonData = (metricKeys: string[]) => {
     return modelNames.map(model => {
       const result: Record<string, any> = { model };
@@ -129,7 +118,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     });
   };
   
-  // Function to prepare data for radar chart
   const getRadarData = (modelName: string) => {
     const modelData = metrics[modelName];
     if (!modelData) return [];
@@ -141,7 +129,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     }));
   };
   
-  // Function to prepare data for heatmap
   const getHeatmapData = () => {
     const data: Array<Record<string, any>> = [];
     
@@ -160,13 +147,11 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return data;
   };
 
-  // Determine color based on metric value and category
   const getHeatmapColor = (value: number, metric: string) => {
     if (value === null || value === undefined) return '#333';
     
     const isHigherBetter = METRIC_CATEGORIES.higherBetter.includes(metric);
     
-    // For "higher is better" metrics
     if (isHigherBetter) {
       if (value >= 0.95) return '#ef4444'; // Excellent - Red
       if (value >= 0.85) return '#f97316'; // Very good - Orange
@@ -174,7 +159,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
       if (value >= 0.65) return '#3b82f6'; // Fair - Blue
       return '#1e40af'; // Poor - Dark blue
     }
-    // For "lower is better" metrics
     else {
       if (value <= 0.03) return '#ef4444'; // Excellent - Red 
       if (value <= 0.06) return '#f97316'; // Very good - Orange
@@ -184,7 +168,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     }
   };
   
-  // Format value for display based on metric type
   const formatMetricValue = (value: number, metric: string) => {
     if (value === null || value === undefined) return 'N/A';
     
@@ -195,7 +178,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return value.toFixed(3);
   };
   
-  // Determine scale domain based on metric type
   const getAxisDomain = (metric: string) => {
     if (METRIC_CATEGORIES.higherBetter.includes(metric)) {
       return [0, 1];
@@ -208,7 +190,6 @@ const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics
     return [0, 'auto'];
   };
   
-  // This will dynamically determine the colors using MODEL_COLORS if available, or fall back to DEFAULT_COLORS
   const getModelColor = (modelName: string, index: number) => {
     return MODEL_COLORS[modelName as keyof typeof MODEL_COLORS] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
   };
