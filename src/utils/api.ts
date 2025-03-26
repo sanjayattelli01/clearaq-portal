@@ -1,3 +1,4 @@
+
 import { AirQualityData, AqiCategory, MetricValue } from "./types";
 
 // Sample API key for demonstration

@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
@@ -50,7 +51,7 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "flex justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
         {...props}
@@ -353,6 +354,135 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config]
 }
 
+// Custom radar chart components for better styling
+const CustomRadarChart = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof RechartsPrimitive.RadarChart> & {
+    className?: string;
+    data: Array<{ metric: string; value: number; fullMark?: number }>;
+    colors?: string[];
+    title?: string;
+  }
+>(({ className, data, colors = ['#3b82f6'], title, ...props }, ref) => {
+  return (
+    <div ref={ref} className={cn("w-full h-full", className)}>
+      {title && (
+        <h3 className="text-lg font-medium text-center text-white mb-4">{title}</h3>
+      )}
+      <RechartsPrimitive.ResponsiveContainer width="100%" height="100%">
+        <RechartsPrimitive.RadarChart
+          cx="50%"
+          cy="50%"
+          outerRadius="80%"
+          data={data}
+          {...props}
+        >
+          <RechartsPrimitive.PolarGrid stroke="#444" />
+          <RechartsPrimitive.PolarAngleAxis
+            dataKey="metric"
+            tick={{ fill: '#fff', fontSize: 12 }}
+          />
+          <RechartsPrimitive.PolarRadiusAxis
+            angle={30}
+            domain={[0, 1]}
+            tick={{ fill: '#999' }}
+            tickCount={5}
+          />
+          <RechartsPrimitive.Radar
+            name="Value"
+            dataKey="value"
+            stroke={colors[0]}
+            fill={colors[0]}
+            fillOpacity={0.6}
+          />
+          <RechartsPrimitive.Tooltip
+            contentStyle={{
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              color: '#fff',
+            }}
+            formatter={(value: number) => [(value * 100).toFixed(2) + '%', 'Value']}
+          />
+        </RechartsPrimitive.RadarChart>
+      </RechartsPrimitive.ResponsiveContainer>
+    </div>
+  );
+});
+CustomRadarChart.displayName = "CustomRadarChart";
+
+// Custom heatmap component
+const CustomHeatmap = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div"> & {
+    data: Array<Record<string, any>>;
+    xKey: string;
+    metrics: string[];
+    colorScale?: (value: number, metric: string) => string;
+    formatter?: (value: number, metric: string) => string;
+    title?: string;
+  }
+>(({ className, data, xKey, metrics, colorScale, formatter, title, ...props }, ref) => {
+  const defaultColorScale = (value: number) => {
+    if (value === null || value === undefined) return '#333';
+    if (value >= 0.9) return '#ef4444';
+    if (value >= 0.8) return '#f97316';
+    if (value >= 0.7) return '#f59e0b';
+    if (value >= 0.6) return '#3b82f6';
+    return '#1e40af';
+  };
+
+  const defaultFormatter = (value: number) => {
+    if (value === null || value === undefined) return 'N/A';
+    return value.toFixed(2);
+  };
+
+  const getColor = colorScale || defaultColorScale;
+  const formatValue = formatter || defaultFormatter;
+
+  return (
+    <div ref={ref} className={cn("w-full overflow-x-auto", className)} {...props}>
+      {title && (
+        <h3 className="text-lg font-medium text-center text-white mb-4">{title}</h3>
+      )}
+      <table className="min-w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="p-2 border-r border-b border-white/10 text-left text-white">{xKey}</th>
+            {metrics.map(metric => (
+              <th key={metric} className="p-2 border-r border-b border-white/10 text-white text-center">
+                {metric}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, idx) => (
+            <tr key={item[xKey]} className={idx % 2 === 0 ? 'bg-black/20' : ''}>
+              <td className="p-2 border-r border-b border-white/10 text-left text-white">
+                {item[xKey]}
+              </td>
+              {metrics.map(metric => {
+                const value = item[metric];
+                return (
+                  <td
+                    key={`${item[xKey]}-${metric}`}
+                    className="p-2 border-r border-b border-white/10 text-center"
+                    style={{ backgroundColor: getColor(value, metric), color: '#fff' }}
+                  >
+                    {formatValue(value, metric)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+CustomHeatmap.displayName = "CustomHeatmap";
+
 export {
   ChartContainer,
   ChartTooltip,
@@ -360,4 +490,6 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  CustomRadarChart,
+  CustomHeatmap
 }

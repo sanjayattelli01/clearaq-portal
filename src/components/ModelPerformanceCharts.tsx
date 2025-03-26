@@ -1,9 +1,9 @@
 
-import React from "react";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  BarChart as RechartsBarChart, 
+  BarChart, 
   Bar, 
   LineChart, 
   Line, 
@@ -13,502 +13,458 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  Scatter,
-  ScatterChart,
-  ZAxis
-} from "recharts";
+  Cell
+} from 'recharts';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { X, BarChart as BarChartIcon, PieChart, Activity } from 'lucide-react';
 
-type MetricType = {
-  Accuracy: number;
-  Precision: number;
-  Recall: number;
-  "F1-Score": number;
-  "ROC-AUC"?: number;
-  "R²"?: number;
-  "MAE"?: number;
-  "MSE"?: number;
-  "RMSE"?: number;
-  "Log Loss"?: number;
-  [key: string]: number | undefined;
-};
-
-interface ModelPerformanceChartsProps {
-  metrics: Record<string, MetricType>;
-  bestModel: string;
+interface ModelMetrics {
+  [key: string]: {
+    [key: string]: number;
+  };
 }
 
-const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics, bestModel }) => {
-  // Extract all available metrics excluding NaN values
-  const allMetricsKeys = React.useMemo(() => {
-    const keys = new Set<string>();
+interface ModelPerformanceChartsProps {
+  metrics: ModelMetrics;
+}
+
+// Define color scheme for models
+const MODEL_COLORS = {
+  'Random Forest': '#3b82f6', // Blue
+  'KNN': '#ef4444', // Red 
+  'Naive Bayes': '#10b981', // Green
+  'SVM': '#a855f7', // Purple
+  'Logistic Regression': '#f97316', // Orange
+  'XGBoost': '#8b5cf6', // Indigo
+  'Decision Tree': '#06b6d4', // Cyan
+  'AdaBoost': '#f59e0b', // Amber
+  'Gradient Boosting': '#ec4899', // Pink
+  'Ridge': '#6366f1', // Indigo
+  'Lasso': '#d946ef' // Fuchsia
+};
+
+const DEFAULT_COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#a855f7', '#f97316', 
+  '#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899', '#6366f1'
+];
+
+// Categorize metrics into "higher is better" and "lower is better"
+const METRIC_CATEGORIES = {
+  higherBetter: [
+    'Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC', 'R²', 'R² Score',
+    'Balanced Accuracy', 'Cohen\'s Kappa', 'Gini Coefficient'
+  ],
+  lowerBetter: [
+    'MAE', 'MSE', 'RMSE', 'Log Loss', 'Hinge Loss', 'Chi-Square (χ²)'
+  ]
+};
+
+const METRIC_COLORS = {
+  'Accuracy': '#3b82f6', // Blue
+  'Precision': '#ef4444', // Red
+  'Recall': '#10b981', // Green
+  'F1-Score': '#a855f7', // Purple
+  'ROC-AUC': '#f97316', // Orange
+  'R²': '#8b5cf6', // Indigo
+  'R² Score': '#8b5cf6', // Indigo (same as R²)
+  'MAE': '#06b6d4', // Cyan
+  'MSE': '#f59e0b', // Amber
+  'RMSE': '#ec4899', // Pink
+  'Log Loss': '#6366f1', // Indigo
+  'Hinge Loss': '#d946ef', // Fuchsia
+  'Chi-Square (χ²)': '#0891b2', // Cyan
+  'Cohen\'s Kappa': '#4ade80', // Green
+  'Balanced Accuracy': '#7dd3fc', // Light blue
+  'Gini Coefficient': '#fbbf24' // Yellow
+};
+
+const ModelPerformanceCharts: React.FC<ModelPerformanceChartsProps> = ({ metrics }) => {
+  // Extract models and metrics for selection
+  const modelNames = Object.keys(metrics);
+  const allMetricNames = useMemo(() => {
+    const metricSet = new Set<string>();
     
-    Object.values(metrics).forEach(modelMetrics => {
-      Object.entries(modelMetrics).forEach(([key, value]) => {
-        if (value !== undefined && !isNaN(value)) {
-          keys.add(key);
-        }
+    Object.values(metrics).forEach(modelMetric => {
+      Object.keys(modelMetric).forEach(key => {
+        metricSet.add(key);
       });
     });
     
-    // Sort metrics in a logical order
-    return Array.from(keys).sort((a, b) => {
-      const metricOrder = [
-        'Accuracy', 'Precision', 'Recall', 'F1-Score', 
-        'ROC-AUC', 'R²', 'MAE', 'MSE', 'RMSE', 'Log Loss'
-      ];
-      const indexA = metricOrder.indexOf(a);
-      const indexB = metricOrder.indexOf(b);
-      
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
-      return a.localeCompare(b);
-    });
+    return Array.from(metricSet);
   }, [metrics]);
-
-  // Prepare data for line chart (performance across metrics)
-  const lineChartData = React.useMemo(() => {
-    return Object.entries(metrics).map(([model, modelMetrics]) => {
-      const data: Record<string, any> = { model };
+  
+  const [selectedModel, setSelectedModel] = useState<string>(modelNames[0] || '');
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
+    allMetricNames.slice(0, 4) // Default to first 4 metrics
+  );
+  
+  // Function to prepare data for the comparison chart
+  const getComparisonData = (metricKeys: string[]) => {
+    return modelNames.map(model => {
+      const result: Record<string, any> = { model };
       
-      allMetricsKeys.forEach(key => {
-        if (modelMetrics[key] !== undefined) {
-          // Convert to percentage for visualization consistency
-          const value = modelMetrics[key] as number;
-          data[key] = isPercentageMetric(key) ? value * 100 : value;
-        }
+      metricKeys.forEach(metric => {
+        result[metric] = metrics[model][metric] !== undefined 
+          ? metrics[model][metric] 
+          : 0;
       });
       
-      return data;
-    });
-  }, [metrics, allMetricsKeys]);
-
-  // Prepare data for bar comparison
-  const prepareBarData = (metricKey: string) => {
-    return Object.entries(metrics).map(([model, modelMetrics]) => {
-      const value = modelMetrics[metricKey];
-      return {
-        model,
-        value: value !== undefined ? (isPercentageMetric(metricKey) ? value * 100 : value) : 0,
-        isHighest: model === bestModel
-      };
+      return result;
     });
   };
-
-  // Prepare heatmap data
-  const heatmapData = React.useMemo(() => {
-    const data: Array<{ model: string; metric: string; value: number; normalizedValue: number }> = [];
+  
+  // Function to prepare data for radar chart
+  const getRadarData = (modelName: string) => {
+    const modelData = metrics[modelName];
+    if (!modelData) return [];
     
-    // Get min/max for each metric for normalization
-    const metricRanges: Record<string, { min: number; max: number }> = {};
+    return Object.entries(modelData).map(([metric, value]) => ({
+      metric,
+      value: value !== undefined ? value : 0,
+      fullMark: METRIC_CATEGORIES.higherBetter.includes(metric) ? 1 : 0.5
+    }));
+  };
+  
+  // Function to prepare data for heatmap
+  const getHeatmapData = () => {
+    const data: Array<Record<string, any>> = [];
     
-    allMetricsKeys.forEach(metric => {
-      let min = Infinity;
-      let max = -Infinity;
+    for (const modelName of modelNames) {
+      const modelData: Record<string, any> = { model: modelName };
       
-      Object.values(metrics).forEach(modelMetric => {
-        const value = modelMetric[metric];
-        if (value !== undefined && !isNaN(value)) {
-          min = Math.min(min, value);
-          max = Math.max(max, value);
-        }
-      });
-      
-      if (min !== Infinity && max !== -Infinity) {
-        metricRanges[metric] = { min, max };
+      for (const metricName of allMetricNames) {
+        modelData[metricName] = metrics[modelName][metricName] !== undefined 
+          ? metrics[modelName][metricName] 
+          : null;
       }
-    });
-    
-    // Create heatmap data with normalized values
-    Object.entries(metrics).forEach(([model, modelMetrics]) => {
-      allMetricsKeys.forEach(metric => {
-        const value = modelMetrics[metric];
-        
-        if (value !== undefined && !isNaN(value)) {
-          const range = metricRanges[metric];
-          const min = range.min;
-          const max = range.max;
-          
-          // Calculate normalized value (0-1)
-          let normalizedValue;
-          
-          if (isLowerBetterMetric(metric)) {
-            // Invert for lower-is-better metrics
-            normalizedValue = max === min ? 0.5 : 1 - ((value - min) / (max - min));
-          } else {
-            normalizedValue = max === min ? 0.5 : (value - min) / (max - min);
-          }
-          
-          data.push({
-            model,
-            metric,
-            value: isPercentageMetric(metric) ? value * 100 : value,
-            normalizedValue
-          });
-        }
-      });
-    });
+      
+      data.push(modelData);
+    }
     
     return data;
-  }, [metrics, allMetricsKeys]);
-
-  // Prepare data for radar charts
-  const radarChartData = React.useMemo(() => {
-    const modelData: Record<string, Array<{ metric: string; value: number; fullMark: 100 }>> = {};
-    
-    // Normalize all metrics to a 0-100 scale for radar chart
-    Object.entries(metrics).forEach(([model, modelMetrics]) => {
-      modelData[model] = [];
-      
-      allMetricsKeys.forEach(metric => {
-        const value = modelMetrics[metric];
-        
-        if (value !== undefined && !isNaN(value)) {
-          // Handle lower-is-better metrics by inverting them for radar chart
-          let normalizedValue;
-          
-          if (isLowerBetterMetric(metric)) {
-            // Use a reasonable max value depending on metric type
-            const maxValue = getMaxValueForMetric(metric);
-            normalizedValue = Math.max(0, Math.min(100, (1 - (value / maxValue)) * 100));
-          } else if (isPercentageMetric(metric)) {
-            normalizedValue = value * 100; // Convert to percentage
-          } else {
-            // For other metrics, scale to 0-100 range
-            const maxValue = getMaxValueForMetric(metric);
-            normalizedValue = Math.min(100, (value / maxValue) * 100);
-          }
-          
-          modelData[model].push({
-            metric,
-            value: normalizedValue,
-            fullMark: 100
-          });
-        }
-      });
-    });
-    
-    return modelData;
-  }, [metrics, allMetricsKeys]);
-
-  // Color variables for the charts
-  const COLORS = {
-    accuracy: "#4dabf5",
-    precision: "#82ca9d",
-    recall: "#ff8042",
-    f1: "#8884d8",
-    bar: "#4facfe",
-    bestBar: "#19de7b",
-    metrics: [
-      "#4dabf5",   // Blue
-      "#82ca9d",   // Green
-      "#ff8042",   // Orange
-      "#8884d8",   // Purple
-      "#ffc658",   // Yellow
-      "#0088FE",   // Bright Blue
-      "#00C49F",   // Teal
-      "#FFBB28",   // Amber
-      "#FF8042",   // Coral
-      "#ff6b81",   // Pink
-      "#a55eea",   // Violet
-      "#2ecc71",   // Emerald
-      "#8395a7",   // Gray Blue
-      "#fd9644",   // Orange
-      "#5f27cd"    // Dark Purple
-    ],
-    models: [
-      "#1f77b4",   // Blue
-      "#ff7f0e",   // Orange
-      "#2ca02c",   // Green
-      "#d62728",   // Red
-      "#9467bd",   // Purple
-      "#8c564b",   // Brown
-      "#e377c2",   // Pink
-      "#7f7f7f",   // Gray
-      "#bcbd22",   // Olive
-      "#17becf"    // Cyan
-    ],
-    heatmap: [
-      "#d4f7ff",   // Very Light Blue (lowest)
-      "#08C6F8",   // Light Blue
-      "#0961FF",   // Medium Blue
-      "#0033D3",   // Dark Blue
-      "#7700A6"    // Purple (highest)
-    ]
   };
 
-  // Helper functions
-  function isPercentageMetric(metric: string): boolean {
-    const percentageMetrics = ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC'];
-    return percentageMetrics.includes(metric);
-  }
-
-  function isLowerBetterMetric(metric: string): boolean {
-    const lowerBetterMetrics = ['MSE', 'RMSE', 'MAE', 'Log Loss'];
-    return lowerBetterMetrics.includes(metric);
-  }
-
-  function getMaxValueForMetric(metric: string): number {
-    // Define reasonable maximum values for different metrics for normalization
-    switch (metric) {
-      case 'MSE':
-      case 'RMSE':
-        return 1.0; // Assuming errors below 1.0 are good
-      case 'MAE':
-        return 0.5; // Assuming MAE below 0.5 is good
-      case 'Log Loss':
-        return 1.0; // Assuming log loss below 1.0 is good
-      case 'R²':
-        return 1.0; // R² is typically between 0 and 1
-      default:
-        return 1.0; // Default scale
+  // Determine color based on metric value and category
+  const getHeatmapColor = (value: number, metric: string) => {
+    if (value === null || value === undefined) return '#333';
+    
+    const isHigherBetter = METRIC_CATEGORIES.higherBetter.includes(metric);
+    
+    // For "higher is better" metrics
+    if (isHigherBetter) {
+      if (value >= 0.95) return '#ef4444'; // Excellent - Red
+      if (value >= 0.85) return '#f97316'; // Very good - Orange
+      if (value >= 0.75) return '#f59e0b'; // Good - Amber
+      if (value >= 0.65) return '#3b82f6'; // Fair - Blue
+      return '#1e40af'; // Poor - Dark blue
     }
-  }
-
-  function getHeatmapColor(value: number): string {
-    // Value should be between 0 and 1
-    const colorScale = COLORS.heatmap;
-    const index = Math.min(Math.floor(value * colorScale.length), colorScale.length - 1);
-    return colorScale[index];
-  }
-
-  // Get all models
-  const models = Object.keys(metrics);
-
+    // For "lower is better" metrics
+    else {
+      if (value <= 0.03) return '#ef4444'; // Excellent - Red 
+      if (value <= 0.06) return '#f97316'; // Very good - Orange
+      if (value <= 0.1) return '#f59e0b'; // Good - Amber
+      if (value <= 0.15) return '#3b82f6'; // Fair - Blue
+      return '#1e40af'; // Poor - Dark blue
+    }
+  };
+  
+  // Format value for display based on metric type
+  const formatMetricValue = (value: number, metric: string) => {
+    if (value === null || value === undefined) return 'N/A';
+    
+    if (['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC', 'R²', 'R² Score', 'Balanced Accuracy'].includes(metric)) {
+      return (value * 100).toFixed(2) + '%';
+    }
+    
+    return value.toFixed(3);
+  };
+  
+  // Determine scale domain based on metric type
+  const getAxisDomain = (metric: string) => {
+    if (METRIC_CATEGORIES.higherBetter.includes(metric)) {
+      return [0, 1];
+    }
+    
+    if (METRIC_CATEGORIES.lowerBetter.includes(metric)) {
+      return [0, 0.5]; // Adjust as needed
+    }
+    
+    return [0, 'auto'];
+  };
+  
+  // This will dynamically determine the colors using MODEL_COLORS if available, or fall back to DEFAULT_COLORS
+  const getModelColor = (modelName: string, index: number) => {
+    return MODEL_COLORS[modelName as keyof typeof MODEL_COLORS] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+  };
+  
+  const getMetricColor = (metricName: string, index: number) => {
+    return METRIC_COLORS[metricName as keyof typeof METRIC_COLORS] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+  };
+  
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="line" className="w-full">
-        <TabsList className="bg-white/10 text-white">
-          <TabsTrigger value="line">Performance Trends</TabsTrigger>
-          <TabsTrigger value="heatmap">Metrics Heatmap</TabsTrigger>
-          <TabsTrigger value="radar">Radar Charts</TabsTrigger>
-          <TabsTrigger value="bars">Metrics Comparison</TabsTrigger>
-          <TabsTrigger value="best">Best Model</TabsTrigger>
+      <Tabs defaultValue="comparison" className="w-full mt-4">
+        <TabsList className="grid grid-cols-3 mb-6">
+          <TabsTrigger value="comparison" className="flex items-center gap-2">
+            <BarChartIcon className="h-4 w-4" />
+            Comparison Charts
+          </TabsTrigger>
+          <TabsTrigger value="radar" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Radar Charts
+          </TabsTrigger>
+          <TabsTrigger value="heatmap" className="flex items-center gap-2">
+            <PieChart className="h-4 w-4" />
+            Metrics Heatmap
+          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="line" className="p-2">
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h4 className="text-sm font-medium text-white mb-2">Model Performance Trends</h4>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={lineChartData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                  <XAxis dataKey="model" stroke="#ccc" tick={{fill: '#ddd'}} />
-                  <YAxis stroke="#ccc" tick={{fill: '#ddd'}} label={{ value: 'Value', angle: -90, position: 'insideLeft', fill: '#ddd' }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#333', borderColor: '#555', color: '#fff' }} />
-                  <Legend />
-                  {allMetricsKeys.slice(0, 5).map((metric, index) => (
-                    <Line 
-                      key={metric}
-                      type="monotone" 
-                      dataKey={metric} 
-                      stroke={COLORS.metrics[index % COLORS.metrics.length]} 
-                      activeDot={{ r: 8 }} 
-                      strokeWidth={2} 
+        
+        <TabsContent value="comparison">
+          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-xl text-white">
+                Comprehensive Model Performance Metrics
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedMetrics.join(',')}
+                    onValueChange={(value) => setSelectedMetrics(value.split(','))}
+                  >
+                    <SelectTrigger className="w-44 text-xs bg-black/30 border-white/10">
+                      <SelectValue placeholder="Select metrics" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black/80 border-white/10 text-white">
+                      <div className="grid grid-cols-2 gap-2 p-2">
+                        {allMetricNames.map((metric) => (
+                          <div key={metric} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={`metric-${metric}`}
+                              checked={selectedMetrics.includes(metric)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMetrics([...selectedMetrics, metric]);
+                                } else {
+                                  setSelectedMetrics(selectedMetrics.filter(m => m !== metric));
+                                }
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <Label htmlFor={`metric-${metric}`} className="text-xs">{metric}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={getComparisonData(selectedMetrics)}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                    <XAxis 
+                      dataKey="model" 
+                      tick={{ fill: '#fff' }} 
+                      angle={-45} 
+                      textAnchor="end"
+                      height={70}
                     />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                    <YAxis 
+                      tick={{ fill: '#fff' }} 
+                      domain={[0, 1]}
+                      tickFormatter={(value) => (value * 100) + '%'}
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
+                      formatter={(value: number, name: string) => {
+                        if (METRIC_CATEGORIES.higherBetter.includes(name)) {
+                          return [(value * 100).toFixed(2) + '%', name];
+                        }
+                        return [value.toFixed(4), name];
+                      }}
+                    />
+                    <Legend wrapperStyle={{ bottom: -10 }} />
+                    {selectedMetrics.map((metric, index) => (
+                      <Bar 
+                        key={metric} 
+                        dataKey={metric} 
+                        fill={getMetricColor(metric, index)} 
+                        name={metric}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="heatmap" className="p-2">
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h4 className="text-sm font-medium text-white mb-2">Performance Metrics Heatmap</h4>
-            <div className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart
-                  margin={{ top: 20, right: 20, bottom: 70, left: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                  <XAxis 
-                    dataKey="metric" 
-                    type="category" 
-                    name="Metric" 
-                    stroke="#ccc"
-                    tick={{fill: '#ddd'}}
-                    angle={-45}
-                    textAnchor="end"
-                    interval={0}
-                  />
-                  <YAxis 
-                    dataKey="model" 
-                    type="category" 
-                    name="Model" 
-                    stroke="#ccc"
-                    tick={{fill: '#ddd'}}
-                    width={80}
-                  />
-                  <ZAxis 
-                    dataKey="normalizedValue" 
-                    range={[0, 0]} 
-                    name="Score" 
-                  />
-                  <Tooltip 
-                    cursor={{ strokeDasharray: '3 3' }}
-                    contentStyle={{ backgroundColor: '#333', borderColor: '#555', color: '#fff' }}
-                    formatter={(value: any, name: string) => {
-                      if (name === 'Score') {
-                        return null; // Hide the normalized value
-                      }
-                      const dataPoint = heatmapData.find(
-                        (point) => point.model === (value as any).model && point.metric === (value as any).metric
-                      );
-                      return [dataPoint?.value.toFixed(3), name];
-                    }}
-                    labelFormatter={(label) => `${(label as any).model} - ${(label as any).metric}`}
-                  />
-                  <Scatter 
-                    data={heatmapData} 
-                    shape={(props) => {
-                      const { cx, cy, payload } = props;
-                      return (
-                        <rect
-                          x={cx - 15}
-                          y={cy - 15}
-                          width={30}
-                          height={30}
-                          fill={getHeatmapColor(payload.normalizedValue)}
-                          fillOpacity={0.8}
-                        />
-                      );
-                    }}
-                  />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center items-center mt-4">
-              <div className="flex items-center space-x-2">
-                <div className="flex space-x-1">
-                  {COLORS.heatmap.map((color, index) => (
-                    <div 
-                      key={index} 
-                      className="w-6 h-4" 
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+        
+        <TabsContent value="radar">
+          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-xl text-white">
+                <div className="flex items-center gap-2">
+                  Model Performance Radar Charts
                 </div>
-                <div className="flex text-xs text-white space-x-6">
-                  <span>Lower</span>
-                  <span>Performance</span>
-                  <span>Higher</span>
+                <Select
+                  value={selectedModel}
+                  onValueChange={setSelectedModel}
+                >
+                  <SelectTrigger className="w-44 text-xs bg-black/30 border-white/10">
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black/80 border-white/10 text-white">
+                    {modelNames.map((model) => (
+                      <SelectItem key={model} value={model} className="text-white hover:bg-white/10">
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full h-[500px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart 
+                    outerRadius="75%" 
+                    data={getRadarData(selectedModel)}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                  >
+                    <PolarGrid stroke="#444" />
+                    <PolarAngleAxis 
+                      dataKey="metric" 
+                      tick={{ fill: '#fff', fontSize: 11 }} 
+                      stroke="#fff"
+                    />
+                    <PolarRadiusAxis 
+                      angle={90} 
+                      domain={[0, 1]} 
+                      tick={{ fill: '#fff' }}
+                      stroke="#444"
+                      tickFormatter={(value) => value.toFixed(1)}
+                    />
+                    <Radar 
+                      name={selectedModel} 
+                      dataKey="value" 
+                      stroke={getModelColor(selectedModel, modelNames.indexOf(selectedModel))} 
+                      fill={getModelColor(selectedModel, modelNames.indexOf(selectedModel))} 
+                      fillOpacity={0.6}
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }}
+                      formatter={(value: number, name: string, entry: any) => {
+                        const metricName = entry?.payload?.metric;
+                        if (METRIC_CATEGORIES.higherBetter.includes(metricName)) {
+                          return [(value * 100).toFixed(2) + '%', metricName];
+                        }
+                        return [value.toFixed(4), metricName];
+                      }}
+                    />
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              <h2 className="text-center mt-4 text-white text-xl font-bold">
+                {selectedModel} Performance Metrics
+              </h2>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="heatmap">
+          <Card className="bg-black/40 backdrop-blur-sm border-white/10">
+            <CardHeader>
+              <CardTitle className="text-xl text-white">Performance Metrics Heatmap</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="p-2 border-r border-b border-white/10 text-left text-white">Models</th>
+                      {allMetricNames.map(metric => (
+                        <th 
+                          key={metric} 
+                          className="p-2 border-r border-b border-white/10 text-white text-center whitespace-nowrap rotate-315 h-32"
+                          style={{ minWidth: '100px' }}
+                        >
+                          <div className="transform rotate-315 origin-bottom-left translate-y-8 -translate-x-2">
+                            {metric}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modelNames.map((model, idx) => (
+                      <tr key={model} className={idx % 2 === 0 ? 'bg-black/20' : ''}>
+                        <td className="p-2 border-r border-b border-white/10 text-left text-white font-medium">
+                          {model}
+                        </td>
+                        {allMetricNames.map(metric => {
+                          const value = metrics[model][metric];
+                          const bgColor = getHeatmapColor(value, metric);
+                          
+                          return (
+                            <td 
+                              key={`${model}-${metric}`} 
+                              className="p-2 border-r border-b border-white/10 text-center"
+                              style={{ 
+                                backgroundColor: bgColor,
+                                color: '#fff',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {formatMetricValue(value, metric)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="mt-6 flex justify-center">
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <div className="text-white text-xs">Better</div>
+                  {['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#1e40af'].map((color, i) => (
+                    <div 
+                      key={i} 
+                      className="w-10 h-4" 
+                      style={{ backgroundColor: color }}
+                    ></div>
+                  ))}
+                  <div className="text-white text-xs">Worse</div>
                 </div>
               </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="radar" className="p-2">
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h4 className="text-sm font-medium text-white mb-2">Model Performance Radar Charts</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {models.map((model, modelIndex) => (
-                <div key={model} className="h-[250px]">
-                  <h5 className="text-xs text-center text-white mb-2">{model}</h5>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart 
-                      outerRadius={90} 
-                      data={radarChartData[model]}
-                    >
-                      <PolarGrid stroke="#555" />
-                      <PolarAngleAxis 
-                        dataKey="metric" 
-                        tick={{ fill: '#ddd', fontSize: 10 }} 
-                      />
-                      <PolarRadiusAxis 
-                        angle={30} 
-                        domain={[0, 100]} 
-                        tick={{ fill: '#ddd' }} 
-                      />
-                      <Radar 
-                        name={model} 
-                        dataKey="value" 
-                        stroke={COLORS.models[modelIndex % COLORS.models.length]} 
-                        fill={COLORS.models[modelIndex % COLORS.models.length]}
-                        fillOpacity={0.6}
-                      />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#333', borderColor: '#555', color: '#fff' }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              ))}
-            </div>
-            <div className="text-xs text-blue-300 mt-4 text-center">
-              <p>Note: All metrics are normalized to a 0-100 scale. For metrics where lower values are better (like MSE, RMSE), 
-                the values are inverted so that higher on the chart always means better performance.</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="bars" className="p-2">
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h4 className="text-sm font-medium text-white mb-2">Model Comparison by Metric</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {allMetricsKeys.map((metric, index) => (
-                <div key={metric} className="h-[250px]">
-                  <h5 className="text-xs text-center text-white mb-2">{metric} {isPercentageMetric(metric) ? '(%)' : ''}</h5>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart
-                      data={prepareBarData(metric)}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                      <XAxis dataKey="model" stroke="#ccc" tick={{fill: '#ddd'}} />
-                      <YAxis stroke="#ccc" tick={{fill: '#ddd'}} />
-                      <Tooltip contentStyle={{ backgroundColor: '#333', borderColor: '#555', color: '#fff' }} />
-                      <Bar 
-                        dataKey="value" 
-                        name={metric} 
-                        fill={COLORS.metrics[index % COLORS.metrics.length]}
-                      >
-                        {prepareBarData(metric).map((entry, i) => (
-                          <Cell 
-                            key={`cell-${i}`} 
-                            fill={entry.isHighest && metric === 'Accuracy' ? COLORS.bestBar : COLORS.metrics[index % COLORS.metrics.length]} 
-                          />
-                        ))}
-                      </Bar>
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="best" className="p-2">
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h4 className="text-sm font-medium text-white mb-2">Best Performing Model (Accuracy)</h4>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart
-                  data={prepareBarData('Accuracy')}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                  <XAxis dataKey="model" stroke="#ccc" tick={{fill: '#ddd'}} />
-                  <YAxis stroke="#ccc" tick={{fill: '#ddd'}} label={{ value: 'Accuracy (%)', angle: -90, position: 'insideLeft', fill: '#ddd' }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#333', borderColor: '#555', color: '#fff' }} />
-                  <Bar dataKey="value" name="Accuracy" fill={COLORS.bar}>
-                    {prepareBarData('Accuracy').map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.isHighest ? COLORS.bestBar : COLORS.bar} />
-                    ))}
-                  </Bar>
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
+              
+              <div className="mt-4 text-xs text-gray-400 text-center">
+                <p>Higher values are better for: Accuracy, Precision, Recall, F1-Score, ROC-AUC, R²</p>
+                <p>Lower values are better for: MAE, MSE, RMSE, Log Loss</p>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

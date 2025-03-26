@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,19 +14,23 @@ import {
   ThumbsUp,
   LogOut,
   Activity,
-  Cloud
+  Cloud,
+  CloudSun
 } from "lucide-react";
 import { AirQualityData, METRICS_INFO } from "@/utils/types";
 import { 
   fetchAirQualityData, 
   fetchAirQualityDataByCity, 
-  getUserCurrentLocation
+  getUserCurrentLocation,
+  fetchAirQualityFromOpenWeather,
+  fetchAirQualityByRegion
 } from "@/utils/api";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AQIAnalysisResult from "./AQIAnalysisResult";
 import AdminHeader from "./AdminHeader";
 import { supabase } from "@/integrations/supabase/client";
+import RegionSelector from "./RegionSelector";
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -56,13 +61,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<string>("data-entry");
   const [analysisPerformed, setAnalysisPerformed] = useState<boolean>(false);
+  const [dataSource, setDataSource] = useState<string>("local");
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [selectedState, setSelectedState] = useState<string>("");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
 
   const loadDataForCurrentLocation = async () => {
     setIsLoading(true);
     
     try {
       const coords = await getUserCurrentLocation();
-      const data = await fetchAirQualityData(coords);
+      
+      let data;
+      if (dataSource === "openweather") {
+        data = await fetchAirQualityFromOpenWeather(coords);
+        toast.success(`Loaded OpenWeather air quality data for ${data.location.name}`);
+      } else {
+        data = await fetchAirQualityData(coords);
+        toast.success(`Loaded air quality data for ${data.location.name}`);
+      }
       
       setAirQualityData(data);
       
@@ -72,8 +89,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
       });
       
       setFormData(initialFormData);
-      toast.success(`Loaded air quality data for ${data.location.name}`);
-      
     } catch (err) {
       console.error("Error fetching data:", err);
       toast.error("Failed to load air quality data");
@@ -106,6 +121,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         .finally(() => {
           setIsLoading(false);
         });
+    }
+  };
+
+  const handleRegionSearch = async () => {
+    if (!selectedCountry) {
+      toast.error("Please select a country");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const data = await fetchAirQualityByRegion(
+        selectedCountry,
+        selectedState,
+        selectedDistrict
+      );
+      
+      setAirQualityData(data);
+      
+      const initialFormData: Record<string, number> = {};
+      Object.keys(data.metrics).forEach(key => {
+        initialFormData[key] = data.metrics[key].value;
+      });
+      
+      setFormData(initialFormData);
+      
+      toast.success(`Loaded air quality data for the selected region`);
+    } catch (err) {
+      console.error("Error fetching data by region:", err);
+      toast.error("Failed to load air quality data for this region");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -264,40 +312,97 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout }) => {
         <div className="glass-card p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1">
-              <form onSubmit={handleCitySearch} className="flex gap-2">
-                <Input 
-                  value={citySearch}
-                  onChange={(e) => setCitySearch(e.target.value)}
-                  placeholder="Enter city name..."
-                  className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/50"
-                />
-                <Button type="submit" disabled={isLoading} className="bg-blue-500 hover:bg-blue-600">
-                  <Search className="mr-2 h-4 w-4" />
-                  Search
-                </Button>
-              </form>
-            </div>
-            
-            <div>
-              <Button 
-                onClick={loadDataForCurrentLocation} 
-                disabled={isLoading}
-                className="w-full bg-blue-500/80 hover:bg-blue-600 flex gap-2"
-              >
-                {isLoading ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MapPin className="h-4 w-4" />
-                )}
-                Use Current Location
-              </Button>
+              <Tabs defaultValue="city" className="mb-6">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="city">City Search</TabsTrigger>
+                  <TabsTrigger value="region">Region Selection</TabsTrigger>
+                  <TabsTrigger value="current">Current Location</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="city">
+                  <form onSubmit={handleCitySearch} className="flex gap-2">
+                    <Input 
+                      value={citySearch}
+                      onChange={(e) => setCitySearch(e.target.value)}
+                      placeholder="Enter city name..."
+                      className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/50"
+                    />
+                    <Button type="submit" disabled={isLoading} className="bg-blue-500 hover:bg-blue-600">
+                      <Search className="mr-2 h-4 w-4" />
+                      Search
+                    </Button>
+                  </form>
+                </TabsContent>
+                
+                <TabsContent value="region">
+                  <div className="flex flex-col gap-4">
+                    <RegionSelector
+                      onCountryChange={setSelectedCountry}
+                      onStateChange={setSelectedState}
+                      onDistrictChange={setSelectedDistrict}
+                      selectedCountry={selectedCountry}
+                      selectedState={selectedState}
+                      selectedDistrict={selectedDistrict}
+                    />
+                    <Button 
+                      onClick={handleRegionSearch} 
+                      disabled={isLoading || !selectedCountry}
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <Search className="mr-2 h-4 w-4" />
+                      Search Region
+                    </Button>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="current">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="data-source-toggle space-y-2">
+                      <Label className="text-white text-sm">Data Source</Label>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant={dataSource === "local" ? "default" : "outline"} 
+                          size="sm"
+                          onClick={() => setDataSource("local")}
+                          className={dataSource === "local" ? "bg-blue-500 hover:bg-blue-600" : "text-blue-300 border-blue-500/30"}
+                        >
+                          <Database className="mr-2 h-4 w-4" />
+                          Local API
+                        </Button>
+                        <Button 
+                          variant={dataSource === "openweather" ? "default" : "outline"} 
+                          size="sm"
+                          onClick={() => setDataSource("openweather")}
+                          className={dataSource === "openweather" ? "bg-blue-500 hover:bg-blue-600" : "text-blue-300 border-blue-500/30"}
+                        >
+                          <CloudSun className="mr-2 h-4 w-4" />
+                          OpenWeather
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={loadDataForCurrentLocation} 
+                      disabled={isLoading}
+                      className="w-full bg-blue-500/80 hover:bg-blue-600 flex gap-2"
+                    >
+                      {isLoading ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MapPin className="h-4 w-4" />
+                      )}
+                      Use Current Location
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
           
           <p className="text-sm text-blue-300 mb-4">
             {airQualityData ? 
-              `Loaded data for ${airQualityData.location.name}` : 
-              "Enter a city or use your current location to load air quality data"
+              `Loaded data for ${airQualityData.location.name}${airQualityData.source ? ` (Source: ${airQualityData.source})` : ''}` : 
+              "Enter a city, select a region, or use your current location to load air quality data"
             }
           </p>
           
